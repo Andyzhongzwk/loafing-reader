@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<!-- Test page for Loafing Reader. Open this file in a browser with the
+     userscript installed (Tampermonkey needs "Allow access to file URLs"
+     enabled for file:// pages) and exercise the reader against the
+     deliberately hostile elements below. -->
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>Loafing Reader 测试页</title>
+<style>
+    /* High z-index sticky header: the reader panel must stay above this. */
+    .sticky-header {
+        position: fixed;
+        top: 0; left: 0; right: 0;
+        height: 48px;
+        background: #1a73e8;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        padding: 0 16px;
+        z-index: 9999;
+        font-family: sans-serif;
+    }
+    body {
+        margin: 0;
+        padding: 64px 24px 24px;
+        font-family: sans-serif;
+        line-height: 1.6;
+        background: #f5f5f5;
+    }
+    .card {
+        background: #fff;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        padding: 16px 20px;
+        margin-bottom: 16px;
+        max-width: 720px;
+    }
+    kbd {
+        background: #eee;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+        padding: 1px 6px;
+        font-size: 12px;
+    }
+    /* Site shortcut canary: if the userscript hijacks global keys, this breaks. */
+    #shortcut-canary.ok::after { content: " ✓ 未被劫持"; color: green; }
+    #shortcut-canary.broken::after { content: " ✗ 被劫持"; color: red; }
+</style>
+</head>
+<body>
+
+<div class="sticky-header">吸顶导航 (z-index: 9999) — 阅读面板必须盖在它上面</div>
+
+<div class="card">
+    <h2>测试清单</h2>
+    <ol>
+        <li>按 <kbd>Alt</kbd>+<kbd>R</kbd> 或点击左上角粉色三角 → 面板应淡入/出现</li>
+        <li>点击 <kbd>[加载]</kbd>，从 <code>tests/fixtures/</code> 选择测试文件</li>
+        <li>左键翻页 / 右键回翻；检查状态栏行号与百分比</li>
+        <li>点击 <kbd>[跳转]</kbd> 输入行号跳转</li>
+        <li>点击 <kbd>[主题]</kbd> 切换明暗</li>
+        <li>鼠标移出面板 → 面板隐藏；按 <kbd>Alt</kbd>+<kbd>R</kbd> 恢复且位置保留</li>
+        <li>刷新页面 → <kbd>Alt</kbd>+<kbd>R</kbd> → 应自动恢复上次的书和位置</li>
+        <li>点击 <kbd>[移动]</kbd> 两次进入/退出拖拽，拖动面板</li>
+    </ol>
+</div>
+
+<div class="card">
+    <h2>快捷键金丝雀</h2>
+    <p>先点击本卡片让页面获得焦点，然后按 <kbd>Alt</kbd>+<kbd>K</kbd>。</p>
+    <p id="shortcut-canary">页面自身快捷键：</p>
+    <p>如果上面显示"被劫持"，说明 userscript 覆盖了 <code>document.onkeydown</code>（v1.3 的已知问题）。</p>
+</div>
+
+<div class="card">
+    <h2>fixtures 说明</h2>
+    <ul>
+        <li><code>utf8.txt</code> — 正常 UTF-8 文本</li>
+        <li><code>gbk.txt</code> — GBK 编码（v2.0 应自动识别；v1.3 需手动选 GBK）</li>
+        <li><code>empty-lines.txt</code> — 大量空行（v2.0 应折叠）</li>
+        <li><code>html-chars.txt</code> — 含 <code>&lt;b&gt;</code> <code>&amp;</code> 等字符（v2.0 应按纯文本显示）</li>
+        <li><code>big.txt</code> — 约 5MB 大文件（v2.0 应提示跳过持久化）</li>
+    </ul>
+</div>
+
+<div class="card">
+    <h2>填充内容</h2>
+    <p>下面的长文本用于制造页面滚动和干扰元素。</p>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. 窗前明月光，疑是地上霜。举头望明月，低头思故乡。这段文字用于填充页面，使页面可以滚动，从而测试阅读面板在滚动页面中的 fixed 定位表现。The quick brown fox jumps over the lazy dog. 重复的内容让页面足够长，方便测试各种边界情况。</p>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. 春眠不觉晓，处处闻啼鸟。夜来风雨声，花落知多少。这段文字用于填充页面，使页面可以滚动，从而测试阅读面板在滚动页面中的 fixed 定位表现。The quick brown fox jumps over the lazy dog. 重复的内容让页面足够长，方便测试各种边界情况。</p>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. 白日依山尽，黄河入海流。欲穷千里目，更上一层楼。这段文字用于填充页面，使页面可以滚动，从而测试阅读面板在滚动页面中的 fixed 定位表现。The quick brown fox jumps over the lazy dog. 重复的内容让页面足够长，方便测试各种边界情况。</p>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. 红豆生南国，春来发几枝。愿君多采撷，此物最相思。这段文字用于填充页面，使页面可以滚动，从而测试阅读面板在滚动页面中的 fixed 定位表现。The quick brown fox jumps over the lazy dog. 重复的内容让页面足够长，方便测试各种边界情况。</p>
+</div>
+
+<script>
+    // Site-level shortcut: the userscript must NOT break this.
+    document.addEventListener('keydown', function (e) {
+        if (e.altKey && (e.key === 'k' || e.key === 'K')) {
+            const el = document.getElementById('shortcut-canary');
+            el.classList.remove('broken');
+            el.classList.add('ok');
+        }
+    });
+</script>
+
+</body>
+</html>
