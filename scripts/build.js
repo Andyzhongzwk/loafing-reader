@@ -30,11 +30,15 @@ const HEADER = `// ==UserScript==
 // listener registration) must come after the modules they depend on.
 const MODULES = [
     'src/style.css.js',
+    'src/storage.js',
     'src/ui/dom.js',
+    'src/ui/toast.js',
     'src/reader/state.js',
     'src/reader/render.js',
+    'src/reader/scroll.js',
     'src/ui/panel.js',
     'src/ui/theme.js',
+    'src/ui/settings.js',
     'src/reader/file.js',
     'src/reader/jump-button.js',
     'src/ui/window.js',

@@ -4,6 +4,36 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.0.0] - 2026-09-21
+
+"Read well" release — reading quality, navigation, and correctness.
+Design doc: docs/v2.0-design.md.
+
+### Added
+- Settings popover ([设置]): font size (12–24px), line height (1.2–2.0),
+  font family (sans-serif / serif / 仿宋), text opacity, background opacity,
+  reading mode (page / scroll). All persisted in a single `lf_settings` JSON
+  key and applied live.
+- Scroll mode: continuous scrolling with a draggable progress bar; bookmark
+  syncs from scroll position (debounced persistence).
+- Keyboard navigation scoped to the visible panel: `→`/`Space` next,
+  `←` previous, `↑`/`↓` scroll (scroll mode), `[`/`]` font size,
+  `Esc` close popover / hide panel.
+- Jump popover: percentage input with 开头 / 上次 / 末尾 quick actions,
+  replacing the v1.3 prompt().
+- Toast notifications replace all alert() calls.
+- Info line now shows `《书名》 · 34.7% · 第 4213 行`.
+
+### Fixed
+- `#lf-text` CSS trailing comma that silently dropped a declaration.
+- Book content injected via `textContent` instead of `innerHTML` — markup in
+  novels now renders as literal text.
+- `document.onkeydown` no longer clobbers the host page's key handler;
+  scoped `addEventListener` is used instead.
+- Panel z-index raised to 2147483647 so site chrome no longer covers it.
+- Consecutive blank lines collapsed to one.
+- Files over 5 MB skip content persistence (with a toast warning).
+
 ## [1.3.0] - 2026-09-21
 
 ### Changed

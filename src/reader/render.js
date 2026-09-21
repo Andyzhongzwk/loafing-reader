@@ -1,6 +1,6 @@
-// Pagination engine. Pages are rendered by appending line elements until the
-// text area is full, then pruning from the opposite end. "direction" is true
-// when moving forward (append) and false when moving backward (prepend).
+// Pagination engine (page mode). Pages are rendered by appending line elements
+// until the text area is full, then pruning from the opposite end. "direction"
+// is true when moving forward (append) and false when moving backward (prepend).
 function render(mark, removeNumber, direction) {
     const ls = fileInfo.page;
     for (let i = 0; i < removeNumber; ++i) {
@@ -15,7 +15,9 @@ function render(mark, removeNumber, direction) {
     let i = mark;
     while (i < fileInfo.length && i >= 0 && elements.text.offsetHeight < elements.content.offsetHeight) {
         const p = ce('div');
-        p.innerHTML = fileInfo.content[i] + '&nbsp;';
+        // Plain text, not innerHTML: book content must never be parsed as markup.
+        // Empty lines get a non-breaking space so they still occupy height.
+        p.textContent = fileInfo.content[i] === '' ? '\u00A0' : fileInfo.content[i];
         if (direction) {
             elements.text.appendChild(p);
             ls.push(p);
@@ -29,7 +31,7 @@ function render(mark, removeNumber, direction) {
                 let t = ls.length;
                 while (t < fileInfo.length && elements.text.offsetHeight < elements.content.offsetHeight) {
                     const p = ce('div');
-                    p.innerHTML = fileInfo.content[t] + '&nbsp;';
+                    p.textContent = fileInfo.content[t] === '' ? '\u00A0' : fileInfo.content[t];
                     elements.text.appendChild(p);
                     ls.push(p);
                     ++t
@@ -44,13 +46,36 @@ function render(mark, removeNumber, direction) {
 // Refresh the info label and persist the current bookmark.
 function updateInfo() {
     const filename = fileInfo.fileName;
-    elements.info.innerText = `(${fileInfo.bookmark}/${fileInfo.length})-${filename}`;
+    if (!fileInfo.content) {
+        elements.info.innerText = '(无文件) · 点击 [加载] 导入 txt';
+        return;
+    }
+    const pct = fileInfo.length > 0 ? (fileInfo.bookmark / fileInfo.length * 100) : 0;
+    elements.info.innerText = `《${filename}》 · ${pct.toFixed(1)}% · 第 ${fileInfo.bookmark} 行`;
 
     GM_setValue('lf_bookmark', fileInfo.bookmark);
 }
 
-// Re-render starting from an absolute line index.
+// Re-render starting from an absolute line index. Branches by reading mode.
 function jump(index) {
+    if (isScrollMode()) {
+        fileInfo.bookmark = Math.max(0, Math.min(fileInfo.length - 1, index));
+        renderScrollAll();
+        scrollToLine(fileInfo.bookmark);
+        updateProgressBar();
+        updateInfo();
+        return;
+    }
+
+    // Coming from scroll mode (or any stale render): the text container holds
+    // lines that are not tracked in fileInfo.page — reset it before paginating.
+    if (elements.text.children.length !== fileInfo.page.length) {
+        while (elements.text.firstChild) {
+            elements.text.removeChild(elements.text.firstChild);
+        }
+        fileInfo.page = [];
+    }
+
     let i = index;
 
     const ls = fileInfo.page;
@@ -63,9 +88,13 @@ function jump(index) {
 
 // Advance one page forward.
 function next() {
+    if (isScrollMode()) {
+        scrollPage(1);
+        return;
+    }
     const ls = fileInfo.page;
     if (fileInfo.bookmark + 1 >= fileInfo.length || ls.length === 0) {
-        alert('已是最后一页');
+        toast('已是最后一页');
         return;
     }
 
@@ -81,9 +110,13 @@ function next() {
 
 // Go back one page.
 function previous() {
+    if (isScrollMode()) {
+        scrollPage(-1);
+        return;
+    }
     const ls = fileInfo.page;
     if (fileInfo.bookmark === 0 || ls.length === 0) {
-        alert('已经是第一页');
+        toast('已经是第一页');
         return
     }
 

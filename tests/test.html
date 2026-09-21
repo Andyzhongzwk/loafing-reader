@@ -53,16 +53,19 @@
 <div class="sticky-header">吸顶导航 (z-index: 9999) — 阅读面板必须盖在它上面</div>
 
 <div class="card">
-    <h2>测试清单</h2>
+    <h2>测试清单 (v2.0)</h2>
     <ol>
-        <li>按 <kbd>Alt</kbd>+<kbd>R</kbd> 或点击左上角粉色三角 → 面板应淡入/出现</li>
+        <li>按 <kbd>Alt</kbd>+<kbd>R</kbd> 或点击左上角粉色三角 → 面板出现</li>
         <li>点击 <kbd>[加载]</kbd>，从 <code>tests/fixtures/</code> 选择测试文件</li>
-        <li>左键翻页 / 右键回翻；检查状态栏行号与百分比</li>
-        <li>点击 <kbd>[跳转]</kbd> 输入行号跳转</li>
-        <li>点击 <kbd>[主题]</kbd> 切换明暗</li>
-        <li>鼠标移出面板 → 面板隐藏；按 <kbd>Alt</kbd>+<kbd>R</kbd> 恢复且位置保留</li>
-        <li>刷新页面 → <kbd>Alt</kbd>+<kbd>R</kbd> → 应自动恢复上次的书和位置</li>
-        <li>点击 <kbd>[移动]</kbd> 两次进入/退出拖拽，拖动面板</li>
+        <li>左键翻页 / 右键回翻；<kbd>→</kbd>/<kbd>空格</kbd>/<kbd>←</kbd> 同样可翻页</li>
+        <li>点击 <kbd>[设置]</kbd>：拖动字号/行高滑块，正文实时变化；切换字体/透明度/模式</li>
+        <li>切到滚动模式：滚轮滚动正文，底部进度条跟随，可拖动进度条跳转</li>
+        <li><kbd>[</kbd> / <kbd>]</kbd> 快捷调整字号</li>
+        <li>点击 <kbd>[跳转]</kbd>：输入百分比回车，或点 开头/上次/末尾</li>
+        <li>点击 <kbd>[主题]</kbd> 切换明暗；<kbd>Esc</kbd> 先关弹层再隐藏面板</li>
+        <li>刷新页面 → <kbd>Alt</kbd>+<kbd>R</kbd> → 恢复上次的书、位置和设置</li>
+        <li>边界翻页（第一页再往前等）→ 出现 toast 提示，<b>不应弹出 alert</b></li>
+        <li>加载 <code>gbk.txt</code>（v2.0 仍需手动选编码；v2.1 将自动识别）</li>
     </ol>
 </div>
 

@@ -38,7 +38,19 @@ npm test          # Node smoke test: builds nothing, tests dist/ — run build f
 
 The smoke test runs the built userscript in a `vm` context against a minimal
 DOM stub and checks panel construction, wake/sleep, loading, paging, jumping,
-and persistence. It is a sanity net, not a browser replacement.
+settings, scroll mode, and persistence. It is a sanity net, not a browser
+replacement.
+
+There is also `tests/browser-harness.html`: the built bundle inlined into a
+real-DOM page that writes assertions into `#results`. It is generated —
+regenerate after each build, then run it with headless Chrome and read the
+`#results` div:
+
+```bash
+node scripts/make-harness.js
+chrome --headless --disable-gpu --virtual-time-budget=3000 --dump-dom \
+  tests/browser-harness.html
+```
 
 For real verification you still need a browser:
 

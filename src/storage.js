@@ -1,0 +1,56 @@
+// Settings storage. All user preferences live in one versioned JSON key so
+// they can be migrated/reset as a unit.
+const SETTINGS_KEY = 'lf_settings';
+
+const DEFAULT_SETTINGS = {
+    fontSize: 12,          // px, 12–24
+    lineHeight: 1.5,       // 1.2–2.0
+    fontFamily: 'sans-serif', // 'serif' | 'sans-serif' | 'fangsong'
+    textOpacity: 1,        // 0.5–1
+    bgOpacity: 0.2,        // 0–0.4, alpha of toolbar/content backgrounds
+    mode: 'page',          // 'page' | 'scroll'
+};
+
+const FONT_FAMILIES = {
+    serif: 'Georgia, "Times New Roman", "SimSun", serif',
+    'sans-serif': '"Segoe UI", "Microsoft YaHei", sans-serif',
+    fangsong: '"FangSong", "仿宋", "STFangsong", serif',
+};
+
+function getSettings() {
+    let saved = {};
+    try {
+        saved = JSON.parse(GM_getValue(SETTINGS_KEY, '{}')) || {};
+    } catch (e) {
+        saved = {};
+    }
+    return Object.assign({}, DEFAULT_SETTINGS, saved);
+}
+
+function setSetting(key, value) {
+    const s = getSettings();
+    s[key] = value;
+    GM_setValue(SETTINGS_KEY, JSON.stringify(s));
+}
+
+// Push the current settings into the live panel styles. Called on init and
+// after every settings change.
+function applySettings() {
+    const s = getSettings();
+    elements.text.style.fontSize = s.fontSize + 'px';
+    elements.text.style.lineHeight = String(s.lineHeight);
+    elements.text.style.fontFamily = FONT_FAMILIES[s.fontFamily] || FONT_FAMILIES['sans-serif'];
+    elements.text.style.opacity = String(s.textOpacity);
+    elements.panel.style.setProperty('--lf-bg-alpha', String(s.bgOpacity));
+    elements.panel.setAttribute('lf-mode', s.mode);
+}
+
+// Keyboard shortcut helper for [ / ] font-size adjustment.
+function adjustFontSize(delta) {
+    const s = getSettings();
+    const size = Math.min(24, Math.max(12, s.fontSize + delta));
+    if (size !== s.fontSize) {
+        setSetting('fontSize', size);
+        applySettings();
+    }
+}
