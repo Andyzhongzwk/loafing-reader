@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.0.1] - 2026-09-21
+
+### Fixed
+- Font size / line height / opacity settings only took effect in scroll
+  mode. Cause: page-mode line divs were created via `ce()` and carried the
+  `.loafing-reader` class, whose hard-coded `font-size: 12px` overrode the
+  user settings applied to `#lf-text`. Page lines are now plain divs that
+  inherit from `#lf-text`, matching scroll mode. Regression check added.
+
 ## [2.0.0] - 2026-09-21
 
 "Read well" release — reading quality, navigation, and correctness.

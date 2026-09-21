@@ -262,6 +262,13 @@ lf.loadFile('big.txt', 'x'.repeat(6 * 1024 * 1024));
 check('oversized file not persisted', storage['lf_file_content'] === '');
 lf.setSetting('mode', 'page');
 
+// Regression: page-mode line divs must NOT carry the .loafing-reader class —
+// it hard-codes font-size and would override user settings on #lf-text
+// (bug found in v2.0.0 acceptance: font size only applied in scroll mode).
+const lineEls = lf.elements.text.children;
+check('page-mode lines have no font-locking class',
+    lineEls.every(c => !(c.getAttribute('class') || '').includes('loafing-reader')));
+
 // ---- Summary ----------------------------------------------------------------
 const failed = results.filter(([, ok]) => !ok);
 console.log(`\n${results.length - failed.length}/${results.length} checks passed`);

@@ -14,7 +14,7 @@ function render(mark, removeNumber, direction) {
 
     let i = mark;
     while (i < fileInfo.length && i >= 0 && elements.text.offsetHeight < elements.content.offsetHeight) {
-        const p = ce('div');
+        const p = document.createElement('div');
         // Plain text, not innerHTML: book content must never be parsed as markup.
         // Empty lines get a non-breaking space so they still occupy height.
         p.textContent = fileInfo.content[i] === '' ? '\u00A0' : fileInfo.content[i];
@@ -30,7 +30,7 @@ function render(mark, removeNumber, direction) {
             if (i < 0) {
                 let t = ls.length;
                 while (t < fileInfo.length && elements.text.offsetHeight < elements.content.offsetHeight) {
-                    const p = ce('div');
+                    const p = document.createElement('div');
                     p.textContent = fileInfo.content[t] === '' ? '\u00A0' : fileInfo.content[t];
                     elements.text.appendChild(p);
                     ls.push(p);

@@ -62,6 +62,9 @@ const cssText = `
     #lf-text {
         background-color: #f000;
         position: relative;
+        /* Line divs are plain (no .loafing-reader class) and inherit from
+           here, so user settings on #lf-text actually reach the text. */
+        color: var(--lf-color);
     }
     .lf-hidden {
         display: none;
