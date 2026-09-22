@@ -13,6 +13,7 @@
 // plus the #lf-trigger hotspot in the top-left corner.
 ce('div', 'panel', [
     ce('div', 'toolbar', [
+        ce('span', 'move', [], 'move-handle'),
         ce('input', 'fileholder', [], 'hidden'),
         ce('span', 'jump', [], 'item', 'btn'),
         ce('span', 'load', [], 'item', 'btn'),
@@ -40,6 +41,8 @@ ce('div', 'trigger', [], 'trigger');
 elements.jump.innerText = '[跳转]';
 elements.load.innerText = '[加载]';
 elements.chapter.innerText = '[章节]';
+elements.move.innerText = '⠿';
+elements.move.title = '按住拖动面板';
 elements.fileholder.type = 'file';
 elements.fileholder.accept = '.txt';
 elements.info.innerText = '(无文件)';

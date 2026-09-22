@@ -186,6 +186,17 @@ const cssText = `
         color: #888;
     }
 
+    /* Move grip at the left end of the toolbar */
+    .lf-move-handle {
+        cursor: move;
+        padding: 0 0.4em;
+        color: var(--lf-btn-color);
+        user-select: none;
+    }
+    .lf-move-handle:hover {
+        color: var(--lf-btn-color-hover);
+    }
+
     /* Resize handle (bottom-right corner) */
     .lf-resize-handle {
         position: absolute;

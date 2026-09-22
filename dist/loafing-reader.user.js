@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         摸鱼小说阅读器 Loafing-Reader
 // @namespace    hanayabuki-loafing-reader
-// @version      2.1.0
+// @version      2.1.1
 // @description  内嵌浏览器里用来上班摸鱼看小说
 // @author       HanaYabuki
 // @match        *://*/*
@@ -201,6 +201,17 @@ const cssText = `
     }
     .lf-chapter-empty {
         color: #888;
+    }
+
+    /* Move grip at the left end of the toolbar */
+    .lf-move-handle {
+        cursor: move;
+        padding: 0 0.4em;
+        color: var(--lf-btn-color);
+        user-select: none;
+    }
+    .lf-move-handle:hover {
+        color: var(--lf-btn-color-hover);
     }
 
     /* Resize handle (bottom-right corner) */
@@ -602,6 +613,7 @@ function initScrollMode() {
 // plus the #lf-trigger hotspot in the top-left corner.
 ce('div', 'panel', [
     ce('div', 'toolbar', [
+        ce('span', 'move', [], 'move-handle'),
         ce('input', 'fileholder', [], 'hidden'),
         ce('span', 'jump', [], 'item', 'btn'),
         ce('span', 'load', [], 'item', 'btn'),
@@ -629,6 +641,8 @@ ce('div', 'trigger', [], 'trigger');
 elements.jump.innerText = '[跳转]';
 elements.load.innerText = '[加载]';
 elements.chapter.innerText = '[章节]';
+elements.move.innerText = '⠿';
+elements.move.title = '按住拖动面板';
 elements.fileholder.type = 'file';
 elements.fileholder.accept = '.txt';
 elements.info.innerText = '(无文件)';
@@ -996,28 +1010,50 @@ elements.chapterPop.addEventListener('click', function (e) {
 })();
 
 /* ===== src/ui/window.js ===== */
-// Panel dragging and resizing (v2.1 "move well").
+// Panel dragging and resizing (v2.1.1: explicit handles, hide-locked).
 //
-// Drag: hold the mouse anywhere on the toolbar (except buttons) and move.
+// Move: press and hold the ⠿ grip at the left end of the toolbar, then drag.
 // Resize: grab the handle at the bottom-right corner of the panel.
+// Both share the same interaction model: hold -> drag -> release.
+//
+// While either operation is active, panelOperating is true and the panel
+// must NOT auto-hide on mouseleave — the cursor is expected to leave the
+// panel bounds during a drag.
+//
 // Position and size persist in settings and are restored on init.
 
 const MIN_WIDTH = 320;
 const MIN_HEIGHT = 200;
 
-let dragState = null;   // { dx, dy } offset from panel top-left to cursor
+let dragState = null;   // { dx, dy } cursor offset from panel top-left
 let resizeState = null; // { startX, startY, startW, startH }
+let panelOperating = false;
 
-// Drag: mousedown on the toolbar background starts a drag; buttons/inputs
-// inside the toolbar keep their own behavior.
-elements.toolbar.addEventListener('mousedown', function (e) {
-    if (e.target !== elements.toolbar) return; // only drag from empty toolbar space
+// Move grip: mousedown on the grip starts a drag.
+elements.move.addEventListener('mousedown', function (e) {
     if (e.button !== 0) return;
+    const rect = elements.panel.getBoundingClientRect();
     dragState = {
-        dx: e.clientX - panelLeft(),
-        dy: e.clientY - panelTop(),
+        dx: e.clientX - rect.left,
+        dy: e.clientY - rect.top,
     };
+    panelOperating = true;
     e.preventDefault();
+    e.stopPropagation();
+});
+
+// Resize handle.
+elements.resize.addEventListener('mousedown', function (e) {
+    if (e.button !== 0) return;
+    resizeState = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startW: elements.panel.offsetWidth,
+        startH: elements.panel.offsetHeight,
+    };
+    panelOperating = true;
+    e.preventDefault();
+    e.stopPropagation();
 });
 
 document.addEventListener('mousemove', function (e) {
@@ -1035,10 +1071,13 @@ document.addEventListener('mousemove', function (e) {
 document.addEventListener('mouseup', function () {
     if (dragState) {
         dragState = null;
-        setSetting('panelLeft', panelLeft());
-        setSetting('panelTop', panelTop());
+        panelOperating = false;
+        const rect = elements.panel.getBoundingClientRect();
+        setSetting('panelLeft', rect.left);
+        setSetting('panelTop', rect.top);
     } else if (resizeState) {
         resizeState = null;
+        panelOperating = false;
         setSetting('panelWidth', elements.panel.offsetWidth);
         setSetting('panelHeight', elements.panel.offsetHeight);
         // Re-paginate the book to the new height (page mode only).
@@ -1047,26 +1086,6 @@ document.addEventListener('mouseup', function () {
         }
     }
 });
-
-// Resize handle.
-elements.resize.addEventListener('mousedown', function (e) {
-    if (e.button !== 0) return;
-    resizeState = {
-        startX: e.clientX,
-        startY: e.clientY,
-        startW: elements.panel.offsetWidth,
-        startH: elements.panel.offsetHeight,
-    };
-    e.preventDefault();
-    e.stopPropagation();
-});
-
-function panelLeft() {
-    return elements.panel.getBoundingClientRect().left;
-}
-function panelTop() {
-    return elements.panel.getBoundingClientRect().top;
-}
 
 // Restore persisted geometry on init (lifecycle calls this). Position is
 // stored as absolute px — the panel's CSS default (top:50%; left:50%) is
@@ -1161,8 +1180,29 @@ elements.panel.addEventListener('click', function () {
     closePopovers();
 });
 
+// Auto-hide with a grace period: leaving the panel starts a 400ms timer;
+// re-entering cancels it. While a drag/resize is in progress (panelOperating,
+// defined in ui/window.js) the panel never auto-hides — the cursor is
+// expected to leave the panel bounds mid-operation.
+const HIDE_DELAY = 400;
+let hideTimer = null;
+
+function cancelHide() {
+    if (hideTimer) {
+        clearTimeout(hideTimer);
+        hideTimer = null;
+    }
+}
+
+elements.panel.addEventListener('mouseenter', cancelHide);
 elements.panel.addEventListener('mouseleave', function (event) {
-    sleepDown();
+    cancelHide();
+    hideTimer = setTimeout(function () {
+        hideTimer = null;
+        if (!panelOperating) {
+            sleepDown();
+        }
+    }, HIDE_DELAY);
 })
 elements.panel.style.visibility = 'hidden';
 elements.trigger.addEventListener('click', function (event) {
@@ -1170,6 +1210,7 @@ elements.trigger.addEventListener('click', function (event) {
 })
 
 function wakeUp() {
+    cancelHide();
     elements.panel.style.visibility = 'visible';
     if (!window.LOAFING_READER_INIT) {
         init();

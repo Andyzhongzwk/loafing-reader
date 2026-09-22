@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.1.1] - 2026-09-22
+
+### Fixed
+- The panel auto-hid whenever the mouse left its bounds, which made dragging
+  and resizing nearly impossible — the cursor is expected to leave the panel
+  mid-operation. While a move/resize is active the panel no longer auto-hides.
+- Auto-hide now has a 400ms grace period: briefly leaving the panel no longer
+  hides it instantly; re-entering cancels the hide.
+
+### Changed
+- Moving uses an explicit grip (⠿) at the left end of the toolbar instead of
+  an invisible "drag the empty toolbar area" gesture, so users can discover
+  it. Move and resize now share one interaction model: hold -> drag -> release.
+
 ## [2.1.0] - 2026-09-22
 
 "Move well / load well" release.

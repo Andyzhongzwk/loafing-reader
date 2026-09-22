@@ -77,8 +77,29 @@ elements.panel.addEventListener('click', function () {
     closePopovers();
 });
 
+// Auto-hide with a grace period: leaving the panel starts a 400ms timer;
+// re-entering cancels it. While a drag/resize is in progress (panelOperating,
+// defined in ui/window.js) the panel never auto-hides — the cursor is
+// expected to leave the panel bounds mid-operation.
+const HIDE_DELAY = 400;
+let hideTimer = null;
+
+function cancelHide() {
+    if (hideTimer) {
+        clearTimeout(hideTimer);
+        hideTimer = null;
+    }
+}
+
+elements.panel.addEventListener('mouseenter', cancelHide);
 elements.panel.addEventListener('mouseleave', function (event) {
-    sleepDown();
+    cancelHide();
+    hideTimer = setTimeout(function () {
+        hideTimer = null;
+        if (!panelOperating) {
+            sleepDown();
+        }
+    }, HIDE_DELAY);
 })
 elements.panel.style.visibility = 'hidden';
 elements.trigger.addEventListener('click', function (event) {
@@ -86,6 +107,7 @@ elements.trigger.addEventListener('click', function (event) {
 })
 
 function wakeUp() {
+    cancelHide();
     elements.panel.style.visibility = 'visible';
     if (!window.LOAFING_READER_INIT) {
         init();
