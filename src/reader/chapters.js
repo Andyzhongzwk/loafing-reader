@@ -23,6 +23,27 @@ function detectChapters(content) {
     return chapters;
 }
 
+// Find the chapter containing a line index (binary search — chapters are
+// sorted by line index). Returns the chapter entry plus its end line.
+function currentChapter(lineIndex) {
+    const chapters = fileInfo.chapters || [];
+    if (chapters.length === 0) return null;
+    let lo = 0, hi = chapters.length - 1, ans = -1;
+    while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (chapters[mid].index <= lineIndex) {
+            ans = mid;
+            lo = mid + 1;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if (ans === -1) return null; // before the first chapter
+    const start = chapters[ans].index;
+    const end = ans + 1 < chapters.length ? chapters[ans + 1].index : fileInfo.length;
+    return { title: chapters[ans].title, index: ans, start: start, end: end };
+}
+
 // Rebuild and show the chapter popover. Called on load and on button click.
 function rebuildChapterList() {
     const pop = elements.chapterPop;
@@ -40,8 +61,7 @@ function rebuildChapterList() {
     fileInfo.chapters.forEach(function (ch) {
         const item = document.createElement('div');
         item.className = 'lf-chapter-item';
-        const pct = fileInfo.length > 1 ? (ch.index / (fileInfo.length - 1) * 100).toFixed(1) : '0';
-        item.textContent = `${ch.title} · ${pct}%`;
+        item.textContent = ch.title;
         item.addEventListener('click', function (e) {
             e.stopPropagation();
             jump(ch.index);

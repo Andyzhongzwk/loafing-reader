@@ -137,10 +137,9 @@ const cssText = `
         font-weight: bold;
     }
 
-    /* Jump popover */
-    #lf-jump-pop input {
-        width: 5em;
-        font-size: 12px;
+    /* Header-hidden (mini) mode: only the text strip remains. */
+    #lf-panel[lf-header='hidden'] #lf-toolbar {
+        display: none;
     }
 
     /* Toasts */

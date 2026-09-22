@@ -46,6 +46,5 @@ elements.fileholder.addEventListener('change', function (e) {
         updateInfo();
     }
 });
-elements.load.addEventListener('click', function (e) {
-    elements.fileholder.click();
-});
+// Loading is triggered from the settings popover (see ui/settings.js), which
+// calls elements.fileholder.click() directly.

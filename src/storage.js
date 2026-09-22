@@ -10,6 +10,8 @@ const DEFAULT_SETTINGS = {
     bgOpacity: 0.2,        // 0–0.4, alpha of toolbar/content backgrounds
     mode: 'page',          // 'page' | 'scroll'
     encoding: 'auto',      // 'auto' | 'utf-8' | 'gb18030'
+    showHeader: true,      // false = mini mode: toolbar hidden, text only
+    visibleLines: 0,       // 0 = auto (fill container); 1–10 = fixed line count
     panelLeft: null,       // persisted geometry (null = centered default)
     panelTop: null,
     panelWidth: null,
@@ -48,6 +50,20 @@ function applySettings() {
     elements.text.style.opacity = String(s.textOpacity);
     elements.panel.style.setProperty('--lf-bg-alpha', String(s.bgOpacity));
     elements.panel.setAttribute('lf-mode', s.mode);
+    elements.panel.setAttribute('lf-header', s.showHeader ? 'show' : 'hidden');
+
+    // Fixed line count: the panel height is derived from lines × line-height
+    // so the text strip is exactly as tall as the requested lines (plus the
+    // toolbar in header mode). Overrides any persisted/free height.
+    if (s.visibleLines > 0) {
+        const toolbarH = s.showHeader ? 18 : 0;
+        const progressH = s.mode === 'scroll' ? 5 : 0;
+        const h = Math.ceil(s.visibleLines * s.fontSize * s.lineHeight) + toolbarH + progressH;
+        elements.panel.style.height = h + 'px';
+        if (fileInfo && fileInfo.content && s.mode === 'page') {
+            jump(fileInfo.bookmark); // re-paginate to the new height
+        }
+    }
 }
 
 // Keyboard shortcut helper for [ / ] font-size adjustment.

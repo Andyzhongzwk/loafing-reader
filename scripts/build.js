@@ -42,7 +42,6 @@ const MODULES = [
     'src/reader/encoding.js',
     'src/reader/file.js',
     'src/reader/chapters.js',
-    'src/reader/jump-button.js',
     'src/ui/window.js',
     'src/lifecycle.js',
 ];

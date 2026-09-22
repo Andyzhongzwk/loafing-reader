@@ -63,11 +63,17 @@ document.addEventListener('keydown', function (event) {
             adjustFontSize(1);
             break;
         case 'Escape':
-            if (isPopoverVisible(elements.settingsPop) || isPopoverVisible(elements.jumpPop)) {
+            if (isPopoverVisible(elements.settingsPop) || isPopoverVisible(elements.chapterPop)) {
                 closePopovers();
             } else {
                 sleepDown();
             }
+            break;
+        case 'h':
+        case 'H':
+            // Toggle header (mini mode). Only meaningful while a book is loaded.
+            setSetting('showHeader', !getSettings().showHeader);
+            applySettings();
             break;
     }
 });

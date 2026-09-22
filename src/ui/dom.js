@@ -17,7 +17,7 @@ function ce(tagName, id, children = [], ...clazz) {
     return tmp;
 }
 
-// Popover visibility helpers (settings / jump panels toggle the lf-hidden class).
+// Popover visibility helpers (settings / chapter panels toggle the lf-hidden class).
 function setPopoverVisible(pop, visible) {
     pop.classList.toggle('lf-hidden', !visible);
 }
@@ -28,6 +28,5 @@ function isPopoverVisible(pop) {
 
 function closePopovers() {
     setPopoverVisible(elements.settingsPop, false);
-    setPopoverVisible(elements.jumpPop, false);
     setPopoverVisible(elements.chapterPop, false);
 }

@@ -19,7 +19,7 @@ const instrumented = script.replace(
         getSettings, setSetting, applySettings, adjustFontSize, isScrollMode,
         renderScrollAll, scrollToLine, lineFromScroll, updateProgressBar,
         collapseBlankLines, wakeUp, sleepDown, closePopovers, isPopoverVisible,
-        decodeText, detectChapters, rebuildChapterList };\n})();`
+        decodeText, detectChapters, rebuildChapterList, currentChapter };\n})();`
 );
 if (instrumented === script) throw new Error('instrumentation failed: IIFE tail not found');
 
@@ -291,6 +291,26 @@ check('loadFile populates chapters', lf.fileInfo.chapters.length === 3);
 // v2.1: chapter popover rebuild renders one item per chapter.
 lf.rebuildChapterList();
 check('chapter popover lists items', lf.elements.chapterPop.children.length === 3);
+
+// v2.2: currentChapter lookup + chapter-centric info line.
+lf.jump(1);
+const ch = lf.currentChapter(1);
+check('currentChapter finds first chapter', ch && ch.title === '第一章 风起' && ch.start === 1);
+lf.jump(2);
+check('currentChapter tracks within chapter', lf.currentChapter(2).end === 3);
+check('info shows chapter + chapter pct', /本章/.test(lf.elements.info.innerText || lf.elements.info.textContent));
+
+// v2.2: fixed line count derives panel height and re-paginates.
+lf.setSetting('visibleLines', 3);
+lf.applySettings();
+check('fixed lines set panel height', /px$/.test(lf.elements.panel.style.height));
+lf.setSetting('showHeader', false);
+lf.applySettings();
+check('mini mode sets header attribute', lf.elements.panel.getAttribute('lf-header') === 'hidden');
+check('mini mode shrinks height (no toolbar)', parseInt(lf.elements.panel.style.height) < 60);
+lf.setSetting('visibleLines', 0);
+lf.setSetting('showHeader', true);
+lf.applySettings();
 
 // ---- Summary ----------------------------------------------------------------
 const failed = results.filter(([, ok]) => !ok);

@@ -44,15 +44,22 @@ function render(mark, removeNumber, direction) {
 }
 
 // Refresh the info label and persist the current bookmark.
+// Info is chapter-centric: current chapter title + progress within that
+// chapter — not whole-book progress, and no book title.
 function updateInfo() {
-    const filename = fileInfo.fileName;
     if (!fileInfo.content) {
-        elements.info.innerText = '(无文件) · 点击 [加载] 导入 txt';
+        elements.info.innerText = '(无文件)';
         return;
     }
-    const pct = fileInfo.length > 0 ? (fileInfo.bookmark / fileInfo.length * 100) : 0;
-    const enc = fileInfo.encoding ? ` · ${ENCODING_LABELS[fileInfo.encoding] || fileInfo.encoding}` : '';
-    elements.info.innerText = `《${filename}》 · ${pct.toFixed(1)}% · 第 ${fileInfo.bookmark} 行${enc}`;
+    const ch = currentChapter(fileInfo.bookmark);
+    if (!ch) {
+        const pct = fileInfo.length > 0 ? (fileInfo.bookmark / fileInfo.length * 100) : 0;
+        elements.info.innerText = `正文 · ${pct.toFixed(1)}%`;
+    } else {
+        const span = Math.max(1, ch.end - ch.start);
+        const pct = Math.min(100, (fileInfo.bookmark - ch.start) / span * 100);
+        elements.info.innerText = `${ch.title} · 本章${pct.toFixed(0)}%`;
+    }
 
     GM_setValue('lf_bookmark', fileInfo.bookmark);
 }

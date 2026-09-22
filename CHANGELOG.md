@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.2.0] - 2026-09-22
+
+"Compact mode" release — the panel can shrink to a pure text strip.
+
+### Added
+- Mini mode: `H` (or the settings popover) hides the toolbar, leaving only
+  the text strip. Toggle back the same way.
+- Fixed visible line count (settings 行数 slider, 0 = auto): the panel height
+  is derived from lines × line-height × font size, so page mode shows exactly
+  that many lines. In fixed-line mode the resize handle adjusts width only.
+- Chapter-centric status line: shows the current chapter title plus progress
+  within that chapter (本章 N%) instead of whole-book progress; no book
+  title.
+
+### Changed
+- [跳转] (percentage jump) removed — chapter jumping covers navigation.
+- Chapter list no longer shows per-chapter percentages.
+- [加载] moved into the settings popover (加载 / 换书); the toolbar now holds
+  only: move grip, [章节], info, [主题], [设置].
+
 ## [2.1.1] - 2026-09-22
 
 ### Fixed

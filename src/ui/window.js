@@ -50,9 +50,13 @@ document.addEventListener('mousemove', function (e) {
         elements.panel.style.top = (e.clientY - dragState.dy) + 'px';
     } else if (resizeState) {
         const w = Math.max(MIN_WIDTH, resizeState.startW + (e.clientX - resizeState.startX));
-        const h = Math.max(MIN_HEIGHT, resizeState.startH + (e.clientY - resizeState.startY));
         elements.panel.style.width = w + 'px';
-        elements.panel.style.height = h + 'px';
+        // When a fixed line count is set, the height is derived from the line
+        // count (see applySettings) — vertical resize is ignored in that case.
+        if (!getSettings().visibleLines) {
+            const h = Math.max(MIN_HEIGHT, resizeState.startH + (e.clientY - resizeState.startY));
+            elements.panel.style.height = h + 'px';
+        }
     }
 });
 
@@ -81,7 +85,10 @@ document.addEventListener('mouseup', function () {
 function applyPanelGeometry() {
     const s = getSettings();
     if (s.panelWidth) elements.panel.style.width = s.panelWidth + 'px';
-    if (s.panelHeight) elements.panel.style.height = s.panelHeight + 'px';
+    // Height: a fixed line count derives its own height (applySettings ran
+    // just before this and already set it), so only restore a persisted
+    // height in auto mode.
+    if (s.panelHeight && !s.visibleLines) elements.panel.style.height = s.panelHeight + 'px';
     if (s.panelLeft !== undefined && s.panelLeft !== null) {
         elements.panel.style.left = s.panelLeft + 'px';
         elements.panel.style.top = s.panelTop + 'px';

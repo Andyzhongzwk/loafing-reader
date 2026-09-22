@@ -83,12 +83,17 @@ function buildSettingsPanel() {
         { value: 'utf-8', label: 'UTF-8' },
         { value: 'gb18030', label: 'GB18030' },
     ]);
+    settingsSlider('行数', 'visibleLines', 0, 10, 1, function (v) { return v === 0 ? '自动' : v + '行'; });
+    settingsChoice('头部', 'showHeader', [
+        { value: true, label: '显示' },
+        { value: false, label: '隐藏' },
+    ]);
 }
 
-// Toggle the settings popover; close the jump popover if open.
+// Toggle the settings popover; close the chapter popover if open.
 elements.settings.addEventListener('click', function (e) {
     e.stopPropagation();
-    setPopoverVisible(elements.jumpPop, false);
+    setPopoverVisible(elements.chapterPop, false);
     setPopoverVisible(elements.settingsPop, !isPopoverVisible(elements.settingsPop));
 });
 elements.settingsPop.addEventListener('click', function (e) {
@@ -96,3 +101,14 @@ elements.settingsPop.addEventListener('click', function (e) {
 });
 
 buildSettingsPanel();
+
+// v2.2: file loading lives in the settings popover (toolbar stays minimal).
+const loadRow = settingsRow('书籍');
+const loadBtn = document.createElement('span');
+loadBtn.className = 'lf-set-choice';
+loadBtn.textContent = '加载 / 换书';
+loadBtn.addEventListener('click', function () {
+    setPopoverVisible(elements.settingsPop, false);
+    elements.fileholder.click();
+});
+loadRow.appendChild(loadBtn);

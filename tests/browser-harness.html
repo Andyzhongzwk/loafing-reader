@@ -160,10 +160,9 @@ const cssText = `
         font-weight: bold;
     }
 
-    /* Jump popover */
-    #lf-jump-pop input {
-        width: 5em;
-        font-size: 12px;
+    /* Header-hidden (mini) mode: only the text strip remains. */
+    #lf-panel[lf-header='hidden'] #lf-toolbar {
+        display: none;
     }
 
     /* Toasts */
@@ -249,6 +248,8 @@ const DEFAULT_SETTINGS = {
     bgOpacity: 0.2,        // 0–0.4, alpha of toolbar/content backgrounds
     mode: 'page',          // 'page' | 'scroll'
     encoding: 'auto',      // 'auto' | 'utf-8' | 'gb18030'
+    showHeader: true,      // false = mini mode: toolbar hidden, text only
+    visibleLines: 0,       // 0 = auto (fill container); 1–10 = fixed line count
     panelLeft: null,       // persisted geometry (null = centered default)
     panelTop: null,
     panelWidth: null,
@@ -287,6 +288,20 @@ function applySettings() {
     elements.text.style.opacity = String(s.textOpacity);
     elements.panel.style.setProperty('--lf-bg-alpha', String(s.bgOpacity));
     elements.panel.setAttribute('lf-mode', s.mode);
+    elements.panel.setAttribute('lf-header', s.showHeader ? 'show' : 'hidden');
+
+    // Fixed line count: the panel height is derived from lines × line-height
+    // so the text strip is exactly as tall as the requested lines (plus the
+    // toolbar in header mode). Overrides any persisted/free height.
+    if (s.visibleLines > 0) {
+        const toolbarH = s.showHeader ? 18 : 0;
+        const progressH = s.mode === 'scroll' ? 5 : 0;
+        const h = Math.ceil(s.visibleLines * s.fontSize * s.lineHeight) + toolbarH + progressH;
+        elements.panel.style.height = h + 'px';
+        if (fileInfo && fileInfo.content && s.mode === 'page') {
+            jump(fileInfo.bookmark); // re-paginate to the new height
+        }
+    }
 }
 
 // Keyboard shortcut helper for [ / ] font-size adjustment.
@@ -319,7 +334,7 @@ function ce(tagName, id, children = [], ...clazz) {
     return tmp;
 }
 
-// Popover visibility helpers (settings / jump panels toggle the lf-hidden class).
+// Popover visibility helpers (settings / chapter panels toggle the lf-hidden class).
 function setPopoverVisible(pop, visible) {
     pop.classList.toggle('lf-hidden', !visible);
 }
@@ -330,7 +345,6 @@ function isPopoverVisible(pop) {
 
 function closePopovers() {
     setPopoverVisible(elements.settingsPop, false);
-    setPopoverVisible(elements.jumpPop, false);
     setPopoverVisible(elements.chapterPop, false);
 }
 
@@ -408,15 +422,22 @@ function render(mark, removeNumber, direction) {
 }
 
 // Refresh the info label and persist the current bookmark.
+// Info is chapter-centric: current chapter title + progress within that
+// chapter — not whole-book progress, and no book title.
 function updateInfo() {
-    const filename = fileInfo.fileName;
     if (!fileInfo.content) {
-        elements.info.innerText = '(无文件) · 点击 [加载] 导入 txt';
+        elements.info.innerText = '(无文件)';
         return;
     }
-    const pct = fileInfo.length > 0 ? (fileInfo.bookmark / fileInfo.length * 100) : 0;
-    const enc = fileInfo.encoding ? ` · ${ENCODING_LABELS[fileInfo.encoding] || fileInfo.encoding}` : '';
-    elements.info.innerText = `《${filename}》 · ${pct.toFixed(1)}% · 第 ${fileInfo.bookmark} 行${enc}`;
+    const ch = currentChapter(fileInfo.bookmark);
+    if (!ch) {
+        const pct = fileInfo.length > 0 ? (fileInfo.bookmark / fileInfo.length * 100) : 0;
+        elements.info.innerText = `正文 · ${pct.toFixed(1)}%`;
+    } else {
+        const span = Math.max(1, ch.end - ch.start);
+        const pct = Math.min(100, (fileInfo.bookmark - ch.start) / span * 100);
+        elements.info.innerText = `${ch.title} · 本章${pct.toFixed(0)}%`;
+    }
 
     GM_setValue('lf_bookmark', fileInfo.bookmark);
 }
@@ -606,23 +627,20 @@ function initScrollMode() {
 /* ===== src/ui/panel.js ===== */
 // Build the panel DOM tree:
 //   #lf-panel
-//     #lf-toolbar (jump / load / chapter buttons, info text, theme + settings
+//     #lf-toolbar (move grip, chapter button, info text, theme + settings
 //                  toggles, hidden file input)
 //     #lf-content > #lf-text
 //     #lf-progress > #lf-progress-thumb   (scroll mode progress bar)
-//     #lf-settings-pop > #lf-settings-body   (settings popover)
-//     #lf-jump-pop                            (jump popover)
+//     #lf-settings-pop > #lf-settings-body   (settings popover; hosts 加载文件)
 //     #lf-chapter-pop                         (chapter list popover)
 //     #lf-toasts                              (toast notifications)
 //     #lf-resize                              (resize handle, bottom-right)
-// Dragging is done from the empty part of the toolbar (see ui/window.js).
+// Dragging uses the ⠿ grip; loading a book is inside the settings popover.
 // plus the #lf-trigger hotspot in the top-left corner.
 ce('div', 'panel', [
     ce('div', 'toolbar', [
         ce('span', 'move', [], 'move-handle'),
         ce('input', 'fileholder', [], 'hidden'),
-        ce('span', 'jump', [], 'item', 'btn'),
-        ce('span', 'load', [], 'item', 'btn'),
         ce('span', 'chapter', [], 'item', 'btn'),
         ce('span', 'info', [], 'item'),
         ce('span', 'color', [], 'item', 'btn'),
@@ -637,15 +655,12 @@ ce('div', 'panel', [
     ce('div', 'settings-pop', [
         ce('div', 'settings-body', [])
     ], 'popover', 'hidden'),
-    ce('div', 'jump-pop', [], 'popover', 'hidden'),
     ce('div', 'chapter-pop', [], 'popover', 'hidden'),
     ce('div', 'toasts', []),
     ce('div', 'resize', [], 'resize-handle'),
 ]);
 ce('div', 'trigger', [], 'trigger');
 
-elements.jump.innerText = '[跳转]';
-elements.load.innerText = '[加载]';
 elements.chapter.innerText = '[章节]';
 elements.move.innerText = '⠿';
 elements.move.title = '按住拖动面板';
@@ -754,12 +769,17 @@ function buildSettingsPanel() {
         { value: 'utf-8', label: 'UTF-8' },
         { value: 'gb18030', label: 'GB18030' },
     ]);
+    settingsSlider('行数', 'visibleLines', 0, 10, 1, function (v) { return v === 0 ? '自动' : v + '行'; });
+    settingsChoice('头部', 'showHeader', [
+        { value: true, label: '显示' },
+        { value: false, label: '隐藏' },
+    ]);
 }
 
-// Toggle the settings popover; close the jump popover if open.
+// Toggle the settings popover; close the chapter popover if open.
 elements.settings.addEventListener('click', function (e) {
     e.stopPropagation();
-    setPopoverVisible(elements.jumpPop, false);
+    setPopoverVisible(elements.chapterPop, false);
     setPopoverVisible(elements.settingsPop, !isPopoverVisible(elements.settingsPop));
 });
 elements.settingsPop.addEventListener('click', function (e) {
@@ -767,6 +787,17 @@ elements.settingsPop.addEventListener('click', function (e) {
 });
 
 buildSettingsPanel();
+
+// v2.2: file loading lives in the settings popover (toolbar stays minimal).
+const loadRow = settingsRow('书籍');
+const loadBtn = document.createElement('span');
+loadBtn.className = 'lf-set-choice';
+loadBtn.textContent = '加载 / 换书';
+loadBtn.addEventListener('click', function () {
+    setPopoverVisible(elements.settingsPop, false);
+    elements.fileholder.click();
+});
+loadRow.appendChild(loadBtn);
 
 /* ===== src/reader/encoding.js ===== */
 // Encoding detection and decoding. Files are read as ArrayBuffer and decoded
@@ -851,9 +882,8 @@ elements.fileholder.addEventListener('change', function (e) {
         updateInfo();
     }
 });
-elements.load.addEventListener('click', function (e) {
-    elements.fileholder.click();
-});
+// Loading is triggered from the settings popover (see ui/settings.js), which
+// calls elements.fileholder.click() directly.
 
 /* ===== src/reader/chapters.js ===== */
 // Chapter detection. Scans the loaded book for common Chinese/English
@@ -881,6 +911,27 @@ function detectChapters(content) {
     return chapters;
 }
 
+// Find the chapter containing a line index (binary search — chapters are
+// sorted by line index). Returns the chapter entry plus its end line.
+function currentChapter(lineIndex) {
+    const chapters = fileInfo.chapters || [];
+    if (chapters.length === 0) return null;
+    let lo = 0, hi = chapters.length - 1, ans = -1;
+    while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (chapters[mid].index <= lineIndex) {
+            ans = mid;
+            lo = mid + 1;
+        } else {
+            hi = mid - 1;
+        }
+    }
+    if (ans === -1) return null; // before the first chapter
+    const start = chapters[ans].index;
+    const end = ans + 1 < chapters.length ? chapters[ans + 1].index : fileInfo.length;
+    return { title: chapters[ans].title, index: ans, start: start, end: end };
+}
+
 // Rebuild and show the chapter popover. Called on load and on button click.
 function rebuildChapterList() {
     const pop = elements.chapterPop;
@@ -898,8 +949,7 @@ function rebuildChapterList() {
     fileInfo.chapters.forEach(function (ch) {
         const item = document.createElement('div');
         item.className = 'lf-chapter-item';
-        const pct = fileInfo.length > 1 ? (ch.index / (fileInfo.length - 1) * 100).toFixed(1) : '0';
-        item.textContent = `${ch.title} · ${pct}%`;
+        item.textContent = ch.title;
         item.addEventListener('click', function (e) {
             e.stopPropagation();
             jump(ch.index);
@@ -926,94 +976,6 @@ elements.chapter.addEventListener('click', function (e) {
 elements.chapterPop.addEventListener('click', function (e) {
     e.stopPropagation();
 });
-
-/* ===== src/reader/jump-button.js ===== */
-// Jump popover: percentage input plus quick actions (start / last position /
-// end). Replaces the v1.3 prompt() dialog.
-(function buildJumpPopover() {
-    const pop = elements.jumpPop;
-
-    const input = document.createElement('input');
-    input.type = 'number';
-    input.min = '0';
-    input.max = '100';
-    input.step = '0.1';
-    input.placeholder = '%';
-    pop.appendChild(input);
-
-    const hint = document.createElement('div');
-    hint.style.fontSize = '11px';
-    hint.textContent = '输入百分比，如 34.7';
-    pop.appendChild(hint);
-
-    const row = document.createElement('div');
-    pop.appendChild(row);
-
-    function mkBtn(label, onClick) {
-        const b = document.createElement('span');
-        b.className = 'lf-btn lf-item';
-        b.textContent = label;
-        b.addEventListener('click', onClick);
-        row.appendChild(b);
-        return b;
-    }
-
-    function jumpToPercent(pct) {
-        if (!fileInfo.content || !fileInfo.length) {
-            toast('请先加载文件');
-            return;
-        }
-        const p = Math.max(0, Math.min(100, parseFloat(pct)));
-        if (isNaN(p)) {
-            toast('输入有误，跳转失败');
-            return;
-        }
-        const index = Math.round(p / 100 * (fileInfo.length - 1));
-        jump(index);
-        GM_setValue('lf_last_jump', index);
-        toast(`已跳转到 ${p}%`);
-        setPopoverVisible(pop, false);
-    }
-
-    mkBtn('[跳转]', function () {
-        jumpToPercent(input.value);
-    });
-    input.addEventListener('keydown', function (e) {
-        if (e.key === 'Enter') jumpToPercent(input.value);
-        e.stopPropagation(); // panel-level shortcuts must not fire while typing
-    });
-    mkBtn('[开头]', function () {
-        jumpToPercent(0);
-    });
-    mkBtn('[上次]', function () {
-        const last = GM_getValue('lf_last_jump', 0);
-        input.value = fileInfo.length ? (last / (fileInfo.length - 1) * 100).toFixed(1) : 0;
-        jumpToPercent(input.value);
-    });
-    mkBtn('[末尾]', function () {
-        jumpToPercent(100);
-    });
-
-    // Toggle the jump popover; close the settings popover if open.
-    elements.jump.addEventListener('click', function (e) {
-        e.stopPropagation();
-        if (!fileInfo.content) {
-            toast('请先加载文件');
-            return;
-        }
-        setPopoverVisible(elements.settingsPop, false);
-        const willShow = !isPopoverVisible(pop);
-        if (willShow) {
-            input.value = fileInfo.length
-                ? (fileInfo.bookmark / (fileInfo.length - 1) * 100).toFixed(1)
-                : '0';
-        }
-        setPopoverVisible(pop, willShow);
-    });
-    pop.addEventListener('click', function (e) {
-        e.stopPropagation();
-    });
-})();
 
 /* ===== src/ui/window.js ===== */
 // Panel dragging and resizing (v2.1.1: explicit handles, hide-locked).
@@ -1068,9 +1030,13 @@ document.addEventListener('mousemove', function (e) {
         elements.panel.style.top = (e.clientY - dragState.dy) + 'px';
     } else if (resizeState) {
         const w = Math.max(MIN_WIDTH, resizeState.startW + (e.clientX - resizeState.startX));
-        const h = Math.max(MIN_HEIGHT, resizeState.startH + (e.clientY - resizeState.startY));
         elements.panel.style.width = w + 'px';
-        elements.panel.style.height = h + 'px';
+        // When a fixed line count is set, the height is derived from the line
+        // count (see applySettings) — vertical resize is ignored in that case.
+        if (!getSettings().visibleLines) {
+            const h = Math.max(MIN_HEIGHT, resizeState.startH + (e.clientY - resizeState.startY));
+            elements.panel.style.height = h + 'px';
+        }
     }
 });
 
@@ -1099,7 +1065,10 @@ document.addEventListener('mouseup', function () {
 function applyPanelGeometry() {
     const s = getSettings();
     if (s.panelWidth) elements.panel.style.width = s.panelWidth + 'px';
-    if (s.panelHeight) elements.panel.style.height = s.panelHeight + 'px';
+    // Height: a fixed line count derives its own height (applySettings ran
+    // just before this and already set it), so only restore a persisted
+    // height in auto mode.
+    if (s.panelHeight && !s.visibleLines) elements.panel.style.height = s.panelHeight + 'px';
     if (s.panelLeft !== undefined && s.panelLeft !== null) {
         elements.panel.style.left = s.panelLeft + 'px';
         elements.panel.style.top = s.panelTop + 'px';
@@ -1172,11 +1141,17 @@ document.addEventListener('keydown', function (event) {
             adjustFontSize(1);
             break;
         case 'Escape':
-            if (isPopoverVisible(elements.settingsPop) || isPopoverVisible(elements.jumpPop)) {
+            if (isPopoverVisible(elements.settingsPop) || isPopoverVisible(elements.chapterPop)) {
                 closePopovers();
             } else {
                 sleepDown();
             }
+            break;
+        case 'h':
+        case 'H':
+            // Toggle header (mini mode). Only meaningful while a book is loaded.
+            setSetting('showHeader', !getSettings().showHeader);
+            applySettings();
             break;
     }
 });
@@ -1279,7 +1254,6 @@ check('Alt+R wakes panel', panel.style.visibility === 'visible');
 // verify the UI chrome built by v2.0.
 check('settings button exists', !!document.getElementById('lf-settings'));
 check('settings popover exists', !!document.getElementById('lf-settings-pop'));
-check('jump popover exists', !!document.getElementById('lf-jump-pop'));
 check('progress bar exists', !!document.getElementById('lf-progress'));
 check('toasts container exists', !!document.getElementById('lf-toasts'));
 check('settings popover hidden initially', document.getElementById('lf-settings-pop').classList.contains('lf-hidden'));
@@ -1289,7 +1263,7 @@ document.getElementById('lf-settings').click();
 check('settings popover opens', !document.getElementById('lf-settings-pop').classList.contains('lf-hidden'));
 // sliders present
 const sliders = document.getElementById('lf-settings-body').querySelectorAll('input[type=range]');
-check('4 sliders built', sliders.length === 4);
+check('5 sliders built', sliders.length === 5);
 
 // change font size slider -> live apply
 sliders[0].value = 20;
@@ -1316,11 +1290,24 @@ document.addEventListener('keydown', (e) => { if (e.key === 'k' && e.altKey) pag
 document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', altKey: true, bubbles: true }));
 check('host page key handler works', pageGotKey);
 
-// no alert on empty jump
+// no alert on chapter click without a book; toast instead
 let alerted = false;
 window.alert = () => { alerted = true; };
-document.getElementById('lf-jump').click();
-check('jump without file shows toast not alert', !alerted && document.querySelectorAll('.lf-toast-item').length > 0);
+document.getElementById('lf-chapter').click();
+check('chapter without book shows toast not alert', !alerted && document.querySelectorAll('.lf-toast-item').length > 0);
+
+// v2.2: H toggles mini mode (header hidden) — panel must be awake first
+document.dispatchEvent(new KeyboardEvent('keydown', { key: 'r', altKey: true, bubbles: true }));
+const toolbarEl = document.getElementById('lf-toolbar');
+document.dispatchEvent(new KeyboardEvent('keydown', { key: 'h', bubbles: true }));
+check('H hides header', panel.getAttribute('lf-header') === 'hidden' && getComputedStyle(toolbarEl).display === 'none');
+document.dispatchEvent(new KeyboardEvent('keydown', { key: 'h', bubbles: true }));
+check('H shows header again', panel.getAttribute('lf-header') === 'show');
+
+// v2.2: settings hosts the load button; toolbar no longer does
+check('load moved into settings', !!document.querySelector('#lf-settings-body .lf-set-choice'));
+check('no load button on toolbar', !document.getElementById('lf-load'));
+check('no jump button on toolbar', !document.getElementById('lf-jump'));
 
 // v2.1.1: drag the panel via the explicit move grip (wake it first — the
 // earlier Esc check left the panel hidden)
