@@ -43,9 +43,10 @@ function render(mark, removeNumber, direction) {
     return direction ? mark : (i + 1);
 }
 
-// Refresh the info label and persist the current bookmark.
-// Info is chapter-centric: current chapter title + progress within that
-// chapter — not whole-book progress, and no book title.
+// Refresh the info label. Info is chapter-centric: current chapter title +
+// progress within that chapter — not whole-book progress, and no book title.
+// UI-only: never persist from here; scroll events call this every frame and
+// storage writes must stay debounced (see scroll.js).
 function updateInfo() {
     if (!fileInfo.content) {
         elements.info.innerText = '(无文件)';
@@ -60,7 +61,10 @@ function updateInfo() {
         const pct = Math.min(100, (fileInfo.bookmark - ch.start) / span * 100);
         elements.info.innerText = `${ch.title} · 本章${pct.toFixed(0)}%`;
     }
+}
 
+// Persist the bookmark immediately — page turns and jumps only.
+function saveBookmark() {
     GM_setValue('lf_bookmark', fileInfo.bookmark);
 }
 
@@ -72,6 +76,7 @@ function jump(index) {
         scrollToLine(fileInfo.bookmark);
         updateProgressBar();
         updateInfo();
+        saveBookmark();
         return;
     }
 
@@ -92,6 +97,7 @@ function jump(index) {
     fileInfo.bookmark = index;
     fileInfo.page = ls;
     updateInfo();
+    saveBookmark();
 }
 
 // Advance one page forward.
@@ -114,6 +120,7 @@ function next() {
     fileInfo.bookmark += s;
     fileInfo.page = ls;
     updateInfo();
+    saveBookmark();
 }
 
 // Go back one page.
@@ -134,4 +141,5 @@ function previous() {
     fileInfo.bookmark = mk;
     fileInfo.page = ls;
     updateInfo();
+    saveBookmark();
 }

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         摸鱼小说阅读器 Loafing-Reader
 // @namespace    hanayabuki-loafing-reader
-// @version      2.4.0
+// @version      2.4.1
 // @description  内嵌浏览器里用来上班摸鱼看小说
 // @author       HanaYabuki
 // @match        *://*/*
@@ -346,6 +346,23 @@ function closePopovers() {
     setPopoverVisible(elements.chapterPop, false);
 }
 
+// Popover placement: popovers open below the toolbar by default, but when
+// the panel sits low on the screen that spills past the viewport bottom.
+// Measure on open and flip the popover to expand upward when there is no
+// room below (and there IS room above — a tall chapter list on a short
+// screen keeps the default rather than oscillating).
+function openPopover(pop) {
+    setPopoverVisible(pop, true);
+    pop.style.top = '20px';
+    pop.style.bottom = 'auto';
+    const panelTop = elements.panel.getBoundingClientRect().top;
+    const popH = pop.offsetHeight;
+    if (panelTop + 20 + popH > window.innerHeight && panelTop - 20 - popH > 0) {
+        pop.style.top = 'auto';
+        pop.style.bottom = 'calc(100% - 20px)';
+    }
+}
+
 /* ===== src/ui/toast.js ===== */
 // Non-blocking toast notifications. Replaces all alert() calls — a stealth
 // reader must never pop a modal dialog.
@@ -419,9 +436,10 @@ function render(mark, removeNumber, direction) {
     return direction ? mark : (i + 1);
 }
 
-// Refresh the info label and persist the current bookmark.
-// Info is chapter-centric: current chapter title + progress within that
-// chapter — not whole-book progress, and no book title.
+// Refresh the info label. Info is chapter-centric: current chapter title +
+// progress within that chapter — not whole-book progress, and no book title.
+// UI-only: never persist from here; scroll events call this every frame and
+// storage writes must stay debounced (see scroll.js).
 function updateInfo() {
     if (!fileInfo.content) {
         elements.info.innerText = '(无文件)';
@@ -436,7 +454,10 @@ function updateInfo() {
         const pct = Math.min(100, (fileInfo.bookmark - ch.start) / span * 100);
         elements.info.innerText = `${ch.title} · 本章${pct.toFixed(0)}%`;
     }
+}
 
+// Persist the bookmark immediately — page turns and jumps only.
+function saveBookmark() {
     GM_setValue('lf_bookmark', fileInfo.bookmark);
 }
 
@@ -448,6 +469,7 @@ function jump(index) {
         scrollToLine(fileInfo.bookmark);
         updateProgressBar();
         updateInfo();
+        saveBookmark();
         return;
     }
 
@@ -468,6 +490,7 @@ function jump(index) {
     fileInfo.bookmark = index;
     fileInfo.page = ls;
     updateInfo();
+    saveBookmark();
 }
 
 // Advance one page forward.
@@ -490,6 +513,7 @@ function next() {
     fileInfo.bookmark += s;
     fileInfo.page = ls;
     updateInfo();
+    saveBookmark();
 }
 
 // Go back one page.
@@ -510,6 +534,7 @@ function previous() {
     fileInfo.bookmark = mk;
     fileInfo.page = ls;
     updateInfo();
+    saveBookmark();
 }
 
 /* ===== src/reader/scroll.js ===== */
@@ -519,6 +544,7 @@ function previous() {
 // share the same persisted position.
 
 let scrollSaveTimer = null;
+let scrollSyncRaf = 0;
 
 function isScrollMode() {
     return getSettings().mode === 'scroll';
@@ -567,15 +593,24 @@ function updateProgressBar() {
 }
 
 // Scroll event handler: sync bookmark + progress bar, persist debounced.
+// Scroll events fire in bursts (a single wheel flick = dozens), and each sync
+// reads scrollHeight on a DOM of tens of thousands of line divs plus a
+// synchronous GM_setValue — doing that per event made scroll mode janky.
+// Coalesce to one sync per animation frame; the storage write stays
+// debounced on top of that.
 function onScroll() {
     if (!isScrollMode() || !fileInfo.content) return;
-    fileInfo.bookmark = lineFromScroll();
-    updateProgressBar();
-    updateInfo();
-    if (scrollSaveTimer) clearTimeout(scrollSaveTimer);
-    scrollSaveTimer = setTimeout(function () {
-        GM_setValue('lf_bookmark', fileInfo.bookmark);
-    }, 300);
+    if (scrollSyncRaf) return;
+    scrollSyncRaf = requestAnimationFrame(function () {
+        scrollSyncRaf = 0;
+        fileInfo.bookmark = lineFromScroll();
+        updateProgressBar();
+        updateInfo();
+        if (scrollSaveTimer) clearTimeout(scrollSaveTimer);
+        scrollSaveTimer = setTimeout(function () {
+            GM_setValue('lf_bookmark', fileInfo.bookmark);
+        }, 300);
+    });
 }
 
 // Page forward/backward by one viewport in scroll mode.
@@ -773,7 +808,11 @@ function buildSettingsPanel() {
 elements.settings.addEventListener('click', function (e) {
     e.stopPropagation();
     setPopoverVisible(elements.chapterPop, false);
-    setPopoverVisible(elements.settingsPop, !isPopoverVisible(elements.settingsPop));
+    if (isPopoverVisible(elements.settingsPop)) {
+        setPopoverVisible(elements.settingsPop, false);
+    } else {
+        openPopover(elements.settingsPop);
+    }
 });
 elements.settingsPop.addEventListener('click', function (e) {
     e.stopPropagation(); // keep the popover open when clicking inside
@@ -963,7 +1002,7 @@ elements.chapter.addEventListener('click', function (e) {
     closePopovers();
     if (willShow) {
         rebuildChapterList();
-        setPopoverVisible(elements.chapterPop, true);
+        openPopover(elements.chapterPop);
     }
 });
 elements.chapterPop.addEventListener('click', function (e) {

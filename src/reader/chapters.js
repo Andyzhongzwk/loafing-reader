@@ -82,7 +82,7 @@ elements.chapter.addEventListener('click', function (e) {
     closePopovers();
     if (willShow) {
         rebuildChapterList();
-        setPopoverVisible(elements.chapterPop, true);
+        openPopover(elements.chapterPop);
     }
 });
 elements.chapterPop.addEventListener('click', function (e) {

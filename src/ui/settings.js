@@ -102,7 +102,11 @@ function buildSettingsPanel() {
 elements.settings.addEventListener('click', function (e) {
     e.stopPropagation();
     setPopoverVisible(elements.chapterPop, false);
-    setPopoverVisible(elements.settingsPop, !isPopoverVisible(elements.settingsPop));
+    if (isPopoverVisible(elements.settingsPop)) {
+        setPopoverVisible(elements.settingsPop, false);
+    } else {
+        openPopover(elements.settingsPop);
+    }
 });
 elements.settingsPop.addEventListener('click', function (e) {
     e.stopPropagation(); // keep the popover open when clicking inside

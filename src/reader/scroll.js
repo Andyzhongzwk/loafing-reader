@@ -4,6 +4,7 @@
 // share the same persisted position.
 
 let scrollSaveTimer = null;
+let scrollSyncRaf = 0;
 
 function isScrollMode() {
     return getSettings().mode === 'scroll';
@@ -52,15 +53,24 @@ function updateProgressBar() {
 }
 
 // Scroll event handler: sync bookmark + progress bar, persist debounced.
+// Scroll events fire in bursts (a single wheel flick = dozens), and each sync
+// reads scrollHeight on a DOM of tens of thousands of line divs plus a
+// synchronous GM_setValue — doing that per event made scroll mode janky.
+// Coalesce to one sync per animation frame; the storage write stays
+// debounced on top of that.
 function onScroll() {
     if (!isScrollMode() || !fileInfo.content) return;
-    fileInfo.bookmark = lineFromScroll();
-    updateProgressBar();
-    updateInfo();
-    if (scrollSaveTimer) clearTimeout(scrollSaveTimer);
-    scrollSaveTimer = setTimeout(function () {
-        GM_setValue('lf_bookmark', fileInfo.bookmark);
-    }, 300);
+    if (scrollSyncRaf) return;
+    scrollSyncRaf = requestAnimationFrame(function () {
+        scrollSyncRaf = 0;
+        fileInfo.bookmark = lineFromScroll();
+        updateProgressBar();
+        updateInfo();
+        if (scrollSaveTimer) clearTimeout(scrollSaveTimer);
+        scrollSaveTimer = setTimeout(function () {
+            GM_setValue('lf_bookmark', fileInfo.bookmark);
+        }, 300);
+    });
 }
 
 // Page forward/backward by one viewport in scroll mode.

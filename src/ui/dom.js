@@ -30,3 +30,20 @@ function closePopovers() {
     setPopoverVisible(elements.settingsPop, false);
     setPopoverVisible(elements.chapterPop, false);
 }
+
+// Popover placement: popovers open below the toolbar by default, but when
+// the panel sits low on the screen that spills past the viewport bottom.
+// Measure on open and flip the popover to expand upward when there is no
+// room below (and there IS room above — a tall chapter list on a short
+// screen keeps the default rather than oscillating).
+function openPopover(pop) {
+    setPopoverVisible(pop, true);
+    pop.style.top = '20px';
+    pop.style.bottom = 'auto';
+    const panelTop = elements.panel.getBoundingClientRect().top;
+    const popH = pop.offsetHeight;
+    if (panelTop + 20 + popH > window.innerHeight && panelTop - 20 - popH > 0) {
+        pop.style.top = 'auto';
+        pop.style.bottom = 'calc(100% - 20px)';
+    }
+}

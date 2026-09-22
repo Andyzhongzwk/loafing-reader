@@ -133,6 +133,10 @@ const sandbox = {
     prompt: () => null,
     setTimeout: (fn, ms) => 0, // fire-and-forget in tests
     clearTimeout: () => {},
+    // Runs the frame callback synchronously so scroll-sync assertions that
+    // fire a scroll event observe the bookmark update immediately.
+    requestAnimationFrame: (fn) => { fn(); return 1; },
+    cancelAnimationFrame: () => {},
     TextDecoder: TextDecoder,
     GM_addStyle: () => {},
     GM_setValue: (k, v) => { storage[k] = v; },

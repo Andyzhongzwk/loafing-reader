@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.4.1] - 2026-09-22
+
+### Fixed
+- Popovers (settings / chapter list) auto-flip to open upward when the panel
+  sits low on the screen and the list would spill past the viewport bottom.
+- Scroll-mode jank: every scroll event used to read scrollHeight on the
+  full-book DOM and run a synchronous GM_setValue. Scroll sync now coalesces
+  to one update per animation frame, and the storage write is debounced.
+  updateInfo() is UI-only; page turns and jumps persist via saveBookmark().
+
 ## [2.4.0] - 2026-09-22
 
 ### Added
