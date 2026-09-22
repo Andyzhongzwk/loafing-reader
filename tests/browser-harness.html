@@ -60,10 +60,26 @@ const cssText = `
     }
     #lf-toolbar {
         background: var(--lf-toolbar-background-color);
-        width: 100%; height: 18px;
+        width: 100%;
+        /* Dynamic height: buttons wrap to a second line when the panel is
+           narrow instead of overflowing into the content area. */
+        min-height: 18px;
+        flex-shrink: 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        overflow: hidden;
     }
     .lf-item {
         padding: 0 0 0 1em;
+        white-space: nowrap;
+    }
+    /* The info text flexes and ellipsizes rather than pushing buttons away. */
+    #lf-info {
+        flex: 1 1 auto;
+        min-width: 4em;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .lf-btn {
         color: var(--lf-btn-color);
@@ -279,7 +295,9 @@ function applySettings() {
     // so the text strip is exactly as tall as the requested lines (plus the
     // toolbar in header mode). Overrides any persisted/free height.
     if (s.visibleLines > 0) {
-        const toolbarH = s.showHeader ? 18 : 0;
+        // Measure the real toolbar height (it grows when buttons wrap at
+        // narrow widths) rather than assuming a single 18px row.
+        const toolbarH = s.showHeader ? (elements.toolbar.offsetHeight || 18) : 0;
         const progressH = s.mode === 'scroll' ? 5 : 0;
         const h = Math.ceil(s.visibleLines * s.fontSize * s.lineHeight) + toolbarH + progressH;
         elements.panel.style.height = h + 'px';
@@ -1331,6 +1349,20 @@ check('no jump button on toolbar', !document.getElementById('lf-jump'));
 check('chapter popover exists', !!document.getElementById('lf-chapter-pop'));
 document.getElementById('lf-chapter').click();
 check('chapter popover guards empty book', document.getElementById('lf-chapter-pop').classList.contains('lf-hidden'));
+
+// v2.3.1: narrow the panel — the toolbar must WRAP and grow, not overflow
+panel.style.width = '200px'; // force the toolbar to wrap
+const tb = document.getElementById('lf-toolbar');
+void tb.offsetHeight; // force reflow
+const tbH = tb.getBoundingClientRect().height;
+const settingsBtn = document.getElementById('lf-settings');
+const sbRect = settingsBtn.getBoundingClientRect();
+const contentTop = document.getElementById('lf-content').getBoundingClientRect().top;
+check('toolbar grows when narrow', tbH > 18);
+check('settings button stays inside toolbar', sbRect.bottom <= tb.getBoundingClientRect().bottom + 1 && sbRect.top >= tb.getBoundingClientRect().top - 1);
+check('settings button above content area', sbRect.bottom <= contentTop + 1);
+panel.style.width = '48em';
+void tb.offsetHeight;
 
 document.getElementById('results').textContent = out.join(String.fromCharCode(10));
 </script>

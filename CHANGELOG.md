@@ -4,6 +4,16 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.3.1] - 2026-09-22
+
+### Fixed
+- Resizing the panel narrow could squeeze toolbar buttons onto a hidden
+  second line: the toolbar had a fixed 18px height, so wrapped buttons
+  overflowed into the content area and [设置] became unreachable. The
+  toolbar now wraps and grows dynamically (min-height 18px, flex-wrap), the
+  info text flexes and ellipsizes instead of pushing buttons away, and the
+  fixed-line-count height calculation measures the real toolbar height.
+
 ## [2.3.0] - 2026-09-22
 
 "Explicit control" release — mode-based move/resize and Alt-based shortcuts.

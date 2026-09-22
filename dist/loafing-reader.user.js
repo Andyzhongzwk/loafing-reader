@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         摸鱼小说阅读器 Loafing-Reader
 // @namespace    hanayabuki-loafing-reader
-// @version      2.3.0
+// @version      2.3.1
 // @description  内嵌浏览器里用来上班摸鱼看小说
 // @author       HanaYabuki
 // @match        *://*/*
@@ -54,10 +54,26 @@ const cssText = `
     }
     #lf-toolbar {
         background: var(--lf-toolbar-background-color);
-        width: 100%; height: 18px;
+        width: 100%;
+        /* Dynamic height: buttons wrap to a second line when the panel is
+           narrow instead of overflowing into the content area. */
+        min-height: 18px;
+        flex-shrink: 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        overflow: hidden;
     }
     .lf-item {
         padding: 0 0 0 1em;
+        white-space: nowrap;
+    }
+    /* The info text flexes and ellipsizes rather than pushing buttons away. */
+    #lf-info {
+        flex: 1 1 auto;
+        min-width: 4em;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .lf-btn {
         color: var(--lf-btn-color);
@@ -273,7 +289,9 @@ function applySettings() {
     // so the text strip is exactly as tall as the requested lines (plus the
     // toolbar in header mode). Overrides any persisted/free height.
     if (s.visibleLines > 0) {
-        const toolbarH = s.showHeader ? 18 : 0;
+        // Measure the real toolbar height (it grows when buttons wrap at
+        // narrow widths) rather than assuming a single 18px row.
+        const toolbarH = s.showHeader ? (elements.toolbar.offsetHeight || 18) : 0;
         const progressH = s.mode === 'scroll' ? 5 : 0;
         const h = Math.ceil(s.visibleLines * s.fontSize * s.lineHeight) + toolbarH + progressH;
         elements.panel.style.height = h + 'px';

@@ -58,7 +58,9 @@ function applySettings() {
     // so the text strip is exactly as tall as the requested lines (plus the
     // toolbar in header mode). Overrides any persisted/free height.
     if (s.visibleLines > 0) {
-        const toolbarH = s.showHeader ? 18 : 0;
+        // Measure the real toolbar height (it grows when buttons wrap at
+        // narrow widths) rather than assuming a single 18px row.
+        const toolbarH = s.showHeader ? (elements.toolbar.offsetHeight || 18) : 0;
         const progressH = s.mode === 'scroll' ? 5 : 0;
         const h = Math.ceil(s.visibleLines * s.fontSize * s.lineHeight) + toolbarH + progressH;
         elements.panel.style.height = h + 'px';

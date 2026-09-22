@@ -37,10 +37,26 @@ const cssText = `
     }
     #lf-toolbar {
         background: var(--lf-toolbar-background-color);
-        width: 100%; height: 18px;
+        width: 100%;
+        /* Dynamic height: buttons wrap to a second line when the panel is
+           narrow instead of overflowing into the content area. */
+        min-height: 18px;
+        flex-shrink: 0;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        overflow: hidden;
     }
     .lf-item {
         padding: 0 0 0 1em;
+        white-space: nowrap;
+    }
+    /* The info text flexes and ellipsizes rather than pushing buttons away. */
+    #lf-info {
+        flex: 1 1 auto;
+        min-width: 4em;
+        overflow: hidden;
+        text-overflow: ellipsis;
     }
     .lf-btn {
         color: var(--lf-btn-color);
