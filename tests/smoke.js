@@ -18,7 +18,8 @@ const instrumented = script.replace(
     `\nwindow.__lf_test = { loadFile, fileInfo, jump, next, previous, elements,
         getSettings, setSetting, applySettings, adjustFontSize, isScrollMode,
         renderScrollAll, scrollToLine, lineFromScroll, updateProgressBar,
-        collapseBlankLines, wakeUp, sleepDown, closePopovers, isPopoverVisible };\n})();`
+        collapseBlankLines, wakeUp, sleepDown, closePopovers, isPopoverVisible,
+        decodeText, detectChapters, rebuildChapterList };\n})();`
 );
 if (instrumented === script) throw new Error('instrumentation failed: IIFE tail not found');
 
@@ -128,6 +129,7 @@ const sandbox = {
     prompt: () => null,
     setTimeout: (fn, ms) => 0, // fire-and-forget in tests
     clearTimeout: () => {},
+    TextDecoder: TextDecoder,
     GM_addStyle: () => {},
     GM_setValue: (k, v) => { storage[k] = v; },
     GM_getValue: (k, d) => (k in storage ? storage[k] : d),
@@ -268,6 +270,27 @@ lf.setSetting('mode', 'page');
 const lineEls = lf.elements.text.children;
 check('page-mode lines have no font-locking class',
     lineEls.every(c => !(c.getAttribute('class') || '').includes('loafing-reader')));
+
+// v2.1: encoding auto-detection. A GBK-encoded buffer must NOT decode as
+// UTF-8 (strict mode fails on the first high byte) and must come back as GB18030.
+const gbkBuf = new TextEncoder().encode('hello'); // ascii is valid utf-8
+check('utf-8 buffer decodes as utf-8', lf.decodeText(gbkBuf.buffer, null).encoding === 'utf-8');
+const gbkBytes = new Uint8Array([0xC4, 0xE3, 0xBA, 0xC3]); // "你好" in GBK
+check('gbk bytes detected as gb18030', lf.decodeText(gbkBytes.buffer, null).encoding === 'gb18030');
+check('gbk bytes decode to correct text', lf.decodeText(gbkBytes.buffer, null).text === '你好');
+check('utf-8 override forced on gbk bytes', lf.decodeText(gbkBytes.buffer, 'utf-8').encoding === 'gb18030');
+
+// v2.1: chapter detection.
+const chLines = ['序言', '第一章 风起', '正文内容……', '第二章 云涌', 'Chapter 3 End'];
+const chapters = lf.detectChapters(chLines);
+check('chapters detected (zh + en)', chapters.length === 3);
+check('chapter index correct', chapters[0].index === 1 && chapters[2].index === 4);
+lf.loadFile('ch.txt', chLines.join('\n'));
+check('loadFile populates chapters', lf.fileInfo.chapters.length === 3);
+
+// v2.1: chapter popover rebuild renders one item per chapter.
+lf.rebuildChapterList();
+check('chapter popover lists items', lf.elements.chapterPop.children.length === 3);
 
 // ---- Summary ----------------------------------------------------------------
 const failed = results.filter(([, ok]) => !ok);

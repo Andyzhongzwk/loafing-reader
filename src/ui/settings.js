@@ -78,6 +78,11 @@ function buildSettingsPanel() {
         { value: 'page', label: '翻页' },
         { value: 'scroll', label: '滚动' },
     ]);
+    settingsChoice('编码', 'encoding', [
+        { value: 'auto', label: '自动' },
+        { value: 'utf-8', label: 'UTF-8' },
+        { value: 'gb18030', label: 'GB18030' },
+    ]);
 }
 
 // Toggle the settings popover; close the jump popover if open.

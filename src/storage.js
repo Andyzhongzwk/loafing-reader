@@ -9,6 +9,11 @@ const DEFAULT_SETTINGS = {
     textOpacity: 1,        // 0.5–1
     bgOpacity: 0.2,        // 0–0.4, alpha of toolbar/content backgrounds
     mode: 'page',          // 'page' | 'scroll'
+    encoding: 'auto',      // 'auto' | 'utf-8' | 'gb18030'
+    panelLeft: null,       // persisted geometry (null = centered default)
+    panelTop: null,
+    panelWidth: null,
+    panelHeight: null,
 };
 
 const FONT_FAMILIES = {

@@ -99,16 +99,15 @@ function wakeUp() {
 }
 
 function sleepDown() {
-    if (!moveWindow) {
-        closePopovers();
-        elements.panel.style.visibility = 'hidden';
-    }
+    closePopovers();
+    elements.panel.style.visibility = 'hidden';
 }
 
 // INIT: restore settings and the previously loaded book from storage.
 window.LOAFING_READER_INIT = false;
 function init() {
     applySettings();
+    applyPanelGeometry();
     initScrollMode();
 
     const lfFileName = GM_getValue('lf_file_name');

@@ -51,7 +51,8 @@ function updateInfo() {
         return;
     }
     const pct = fileInfo.length > 0 ? (fileInfo.bookmark / fileInfo.length * 100) : 0;
-    elements.info.innerText = `《${filename}》 · ${pct.toFixed(1)}% · 第 ${fileInfo.bookmark} 行`;
+    const enc = fileInfo.encoding ? ` · ${ENCODING_LABELS[fileInfo.encoding] || fileInfo.encoding}` : '';
+    elements.info.innerText = `《${filename}》 · ${pct.toFixed(1)}% · 第 ${fileInfo.bookmark} 行${enc}`;
 
     GM_setValue('lf_bookmark', fileInfo.bookmark);
 }

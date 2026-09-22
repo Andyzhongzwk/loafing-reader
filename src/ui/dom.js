@@ -29,4 +29,5 @@ function isPopoverVisible(pop) {
 function closePopovers() {
     setPopoverVisible(elements.settingsPop, false);
     setPopoverVisible(elements.jumpPop, false);
+    setPopoverVisible(elements.chapterPop, false);
 }

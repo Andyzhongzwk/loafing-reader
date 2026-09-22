@@ -161,4 +161,43 @@ const cssText = `
         border-radius: 3px;
         margin-top: 4px;
     }
+
+    /* Chapter list popover (scrollable, opened via [章节]) */
+    #lf-chapter-pop {
+        top: 20px;
+        left: 4px;
+        right: auto;
+        max-height: 80%;
+        overflow-y: auto;
+        min-width: 14em;
+    }
+    .lf-chapter-item {
+        cursor: pointer;
+        padding: 1px 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 24em;
+    }
+    .lf-chapter-item:hover {
+        color: var(--lf-btn-color-hover);
+    }
+    .lf-chapter-empty {
+        color: #888;
+    }
+
+    /* Resize handle (bottom-right corner) */
+    .lf-resize-handle {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 14px;
+        height: 14px;
+        cursor: nwse-resize;
+        background: linear-gradient(135deg, transparent 50%, var(--lf-btn-color) 50%);
+        opacity: 0.5;
+    }
+    .lf-resize-handle:hover {
+        opacity: 1;
+    }
 `;

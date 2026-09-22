@@ -4,6 +4,26 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.1.0] - 2026-09-22
+
+"Move well / load well" release.
+
+### Added
+- Encoding auto-detection: files are read as ArrayBuffer and decoded UTF-8
+  (strict) → GB18030, so GBK/GB18030 novels load without the encoding
+  prompt. Manual override (自动 / UTF-8 / GB18030) in the settings popover;
+  the detected encoding is shown in the info line.
+- Chapter detection: headings like 第一章 / 第12回 / Chapter 5 are detected
+  on load; the [章节] popover lists them with percentages and jumps on click.
+- Real panel dragging: hold the empty toolbar area and move (replaces the
+  v1.3 [移动] toggle button).
+- Panel resizing: bottom-right handle, with a minimum size; page mode
+  re-paginates after a resize.
+- Panel position and size persist across sessions.
+
+### Removed
+- The [移动] toolbar button and the encoding prompt on every file load.
+
 ## [2.0.1] - 2026-09-21
 
 ### Fixed

@@ -1,6 +1,7 @@
-// File loading. The file content is split into lines and persisted via
-// GM_setValue so the book survives page reloads. Files above the size cap are
-// kept in memory only (persisting them would bloat storage).
+// File loading. The file is read as an ArrayBuffer and decoded with automatic
+// encoding detection (see encoding.js), so most users never see an encoding
+// prompt. The decoded text is persisted via GM_setValue so the book survives
+// page reloads; files above the size cap are kept in memory only.
 
 const SIZE_CAP = 5 * 1024 * 1024; // bytes
 
@@ -17,6 +18,7 @@ function loadFile(filename, content) {
     fileInfo.length = fileInfo.content.length;
     fileInfo.bookmark = 0;
     fileInfo.page = [];
+    fileInfo.chapters = detectChapters(fileInfo.content);
 
     GM_setValue('lf_file_name', filename);
     if (content.length <= SIZE_CAP) {
@@ -30,19 +32,20 @@ function loadFile(filename, content) {
     jump(0);
 }
 
-// Character set used when reading the file. Users can override it via the
-// load button's prompt before picking a file.
-let charset = "utf-8";
-
+// v2.1: read as ArrayBuffer + auto-detect encoding. A manual override can be
+// chosen in the settings popover (encoding row) — the load button no longer
+// prompts on every file.
 elements.fileholder.addEventListener('change', function (e) {
     const file = elements.fileholder.files[0];
     const reader = new FileReader();
-    reader.readAsText(file, charset);
+    reader.readAsArrayBuffer(file);
     reader.onload = function () {
-        loadFile(file.name, this.result);
+        const result = decodeText(this.result, currentEncodingPreference());
+        loadFile(file.name, result.text);
+        fileInfo.encoding = result.encoding;
+        updateInfo();
     }
 });
 elements.load.addEventListener('click', function (e) {
-    charset = prompt("选择文件编码格式", charset)
     elements.fileholder.click();
 });

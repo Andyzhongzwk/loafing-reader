@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         摸鱼小说阅读器 Loafing-Reader
 // @namespace    hanayabuki-loafing-reader
-// @version      2.0.0
+// @version      2.1.0
 // @description  内嵌浏览器里用来上班摸鱼看小说
 // @author       HanaYabuki
 // @match        *://*/*
@@ -178,6 +178,45 @@ const cssText = `
         border-radius: 3px;
         margin-top: 4px;
     }
+
+    /* Chapter list popover (scrollable, opened via [章节]) */
+    #lf-chapter-pop {
+        top: 20px;
+        left: 4px;
+        right: auto;
+        max-height: 80%;
+        overflow-y: auto;
+        min-width: 14em;
+    }
+    .lf-chapter-item {
+        cursor: pointer;
+        padding: 1px 0;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 24em;
+    }
+    .lf-chapter-item:hover {
+        color: var(--lf-btn-color-hover);
+    }
+    .lf-chapter-empty {
+        color: #888;
+    }
+
+    /* Resize handle (bottom-right corner) */
+    .lf-resize-handle {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        width: 14px;
+        height: 14px;
+        cursor: nwse-resize;
+        background: linear-gradient(135deg, transparent 50%, var(--lf-btn-color) 50%);
+        opacity: 0.5;
+    }
+    .lf-resize-handle:hover {
+        opacity: 1;
+    }
 `;
 
 /* ===== src/storage.js ===== */
@@ -192,6 +231,11 @@ const DEFAULT_SETTINGS = {
     textOpacity: 1,        // 0.5–1
     bgOpacity: 0.2,        // 0–0.4, alpha of toolbar/content backgrounds
     mode: 'page',          // 'page' | 'scroll'
+    encoding: 'auto',      // 'auto' | 'utf-8' | 'gb18030'
+    panelLeft: null,       // persisted geometry (null = centered default)
+    panelTop: null,
+    panelWidth: null,
+    panelHeight: null,
 };
 
 const FONT_FAMILIES = {
@@ -270,6 +314,7 @@ function isPopoverVisible(pop) {
 function closePopovers() {
     setPopoverVisible(elements.settingsPop, false);
     setPopoverVisible(elements.jumpPop, false);
+    setPopoverVisible(elements.chapterPop, false);
 }
 
 /* ===== src/ui/toast.js ===== */
@@ -353,7 +398,8 @@ function updateInfo() {
         return;
     }
     const pct = fileInfo.length > 0 ? (fileInfo.bookmark / fileInfo.length * 100) : 0;
-    elements.info.innerText = `《${filename}》 · ${pct.toFixed(1)}% · 第 ${fileInfo.bookmark} 行`;
+    const enc = fileInfo.encoding ? ` · ${ENCODING_LABELS[fileInfo.encoding] || fileInfo.encoding}` : '';
+    elements.info.innerText = `《${filename}》 · ${pct.toFixed(1)}% · 第 ${fileInfo.bookmark} 行${enc}`;
 
     GM_setValue('lf_bookmark', fileInfo.bookmark);
 }
@@ -543,20 +589,23 @@ function initScrollMode() {
 /* ===== src/ui/panel.js ===== */
 // Build the panel DOM tree:
 //   #lf-panel
-//     #lf-toolbar (jump / load / move buttons, info text, theme + settings toggles,
-//                  hidden file input)
+//     #lf-toolbar (jump / load / chapter buttons, info text, theme + settings
+//                  toggles, hidden file input)
 //     #lf-content > #lf-text
 //     #lf-progress > #lf-progress-thumb   (scroll mode progress bar)
 //     #lf-settings-pop > #lf-settings-body   (settings popover)
-//     #lf-jump-pop                            (jump popover, built in jump-button.js)
+//     #lf-jump-pop                            (jump popover)
+//     #lf-chapter-pop                         (chapter list popover)
 //     #lf-toasts                              (toast notifications)
+//     #lf-resize                              (resize handle, bottom-right)
+// Dragging is done from the empty part of the toolbar (see ui/window.js).
 // plus the #lf-trigger hotspot in the top-left corner.
 ce('div', 'panel', [
     ce('div', 'toolbar', [
         ce('input', 'fileholder', [], 'hidden'),
         ce('span', 'jump', [], 'item', 'btn'),
         ce('span', 'load', [], 'item', 'btn'),
-        ce('span', 'move', [], 'item', 'btn'),
+        ce('span', 'chapter', [], 'item', 'btn'),
         ce('span', 'info', [], 'item'),
         ce('span', 'color', [], 'item', 'btn'),
         ce('span', 'settings', [], 'item', 'btn'),
@@ -571,13 +620,15 @@ ce('div', 'panel', [
         ce('div', 'settings-body', [])
     ], 'popover', 'hidden'),
     ce('div', 'jump-pop', [], 'popover', 'hidden'),
+    ce('div', 'chapter-pop', [], 'popover', 'hidden'),
     ce('div', 'toasts', []),
+    ce('div', 'resize', [], 'resize-handle'),
 ]);
 ce('div', 'trigger', [], 'trigger');
 
 elements.jump.innerText = '[跳转]';
 elements.load.innerText = '[加载]';
-elements.move.innerText = '[移动]';
+elements.chapter.innerText = '[章节]';
 elements.fileholder.type = 'file';
 elements.fileholder.accept = '.txt';
 elements.info.innerText = '(无文件)';
@@ -678,6 +729,11 @@ function buildSettingsPanel() {
         { value: 'page', label: '翻页' },
         { value: 'scroll', label: '滚动' },
     ]);
+    settingsChoice('编码', 'encoding', [
+        { value: 'auto', label: '自动' },
+        { value: 'utf-8', label: 'UTF-8' },
+        { value: 'gb18030', label: 'GB18030' },
+    ]);
 }
 
 // Toggle the settings popover; close the jump popover if open.
@@ -692,10 +748,45 @@ elements.settingsPop.addEventListener('click', function (e) {
 
 buildSettingsPanel();
 
+/* ===== src/reader/encoding.js ===== */
+// Encoding detection and decoding. Files are read as ArrayBuffer and decoded
+// in a strict order: UTF-8 first (any invalid byte fails), then GB18030
+// (superset of GBK, covers the vast majority of Chinese novels).
+// TextDecoder is available in all modern browsers.
+
+// Returns { text, encoding } — encoding is what actually decoded successfully.
+function decodeText(buffer, preferred) {
+    const encodings = preferred ? [preferred] : ['utf-8', 'gb18030'];
+    for (const enc of encodings) {
+        try {
+            const text = new TextDecoder(enc, { fatal: true }).decode(buffer);
+            return { text, encoding: enc };
+        } catch (e) {
+            // Invalid byte sequence for this encoding — try the next one.
+        }
+    }
+    // Nothing decoded strictly. Fall back to GB18030 with replacement chars
+    // so the user at least sees content (and can switch encoding manually).
+    return {
+        text: new TextDecoder('gb18030').decode(buffer),
+        encoding: 'gb18030',
+    };
+}
+
+// Manual override cycle shown in the settings popover / toolbar hint.
+const ENCODING_OPTIONS = ['auto', 'utf-8', 'gb18030'];
+const ENCODING_LABELS = { auto: '自动', 'utf-8': 'UTF-8', gb18030: 'GB18030' };
+
+function currentEncodingPreference() {
+    const enc = getSettings().encoding;
+    return enc === 'auto' ? null : enc;
+}
+
 /* ===== src/reader/file.js ===== */
-// File loading. The file content is split into lines and persisted via
-// GM_setValue so the book survives page reloads. Files above the size cap are
-// kept in memory only (persisting them would bloat storage).
+// File loading. The file is read as an ArrayBuffer and decoded with automatic
+// encoding detection (see encoding.js), so most users never see an encoding
+// prompt. The decoded text is persisted via GM_setValue so the book survives
+// page reloads; files above the size cap are kept in memory only.
 
 const SIZE_CAP = 5 * 1024 * 1024; // bytes
 
@@ -712,6 +803,7 @@ function loadFile(filename, content) {
     fileInfo.length = fileInfo.content.length;
     fileInfo.bookmark = 0;
     fileInfo.page = [];
+    fileInfo.chapters = detectChapters(fileInfo.content);
 
     GM_setValue('lf_file_name', filename);
     if (content.length <= SIZE_CAP) {
@@ -725,21 +817,94 @@ function loadFile(filename, content) {
     jump(0);
 }
 
-// Character set used when reading the file. Users can override it via the
-// load button's prompt before picking a file.
-let charset = "utf-8";
-
+// v2.1: read as ArrayBuffer + auto-detect encoding. A manual override can be
+// chosen in the settings popover (encoding row) — the load button no longer
+// prompts on every file.
 elements.fileholder.addEventListener('change', function (e) {
     const file = elements.fileholder.files[0];
     const reader = new FileReader();
-    reader.readAsText(file, charset);
+    reader.readAsArrayBuffer(file);
     reader.onload = function () {
-        loadFile(file.name, this.result);
+        const result = decodeText(this.result, currentEncodingPreference());
+        loadFile(file.name, result.text);
+        fileInfo.encoding = result.encoding;
+        updateInfo();
     }
 });
 elements.load.addEventListener('click', function (e) {
-    charset = prompt("选择文件编码格式", charset)
     elements.fileholder.click();
+});
+
+/* ===== src/reader/chapters.js ===== */
+// Chapter detection. Scans the loaded book for common Chinese/English
+// chapter headings and builds a quick-jump list:
+//   第一章 / 第12章 / 第百二十回 / 卷三 / Chapter 5 / ch.7
+// Chapter positions are recomputed on every loadFile.
+
+const CHAPTER_PATTERNS = [
+    /^\s*第[零一二三四五六七八九十百千万两0-9０-９]+[章回节卷部集]/,
+    /^\s*(chapter|ch\.?)\s*[0-9ivx]+/i,
+];
+
+function detectChapters(content) {
+    const chapters = [];
+    for (let i = 0; i < content.length; i++) {
+        const line = content[i];
+        if (line.length > 40) continue; // chapter headings are short lines
+        for (const re of CHAPTER_PATTERNS) {
+            if (re.test(line)) {
+                chapters.push({ index: i, title: line.trim().slice(0, 30) });
+                break;
+            }
+        }
+    }
+    return chapters;
+}
+
+// Rebuild and show the chapter popover. Called on load and on button click.
+function rebuildChapterList() {
+    const pop = elements.chapterPop;
+    // Clear previous items (keep nothing but rebuild from scratch).
+    while (pop.firstChild) {
+        pop.removeChild(pop.firstChild);
+    }
+    if (!fileInfo.chapters || fileInfo.chapters.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'lf-chapter-empty';
+        empty.textContent = '未检测到章节';
+        pop.appendChild(empty);
+        return;
+    }
+    fileInfo.chapters.forEach(function (ch) {
+        const item = document.createElement('div');
+        item.className = 'lf-chapter-item';
+        const pct = fileInfo.length > 1 ? (ch.index / (fileInfo.length - 1) * 100).toFixed(1) : '0';
+        item.textContent = `${ch.title} · ${pct}%`;
+        item.addEventListener('click', function (e) {
+            e.stopPropagation();
+            jump(ch.index);
+            setPopoverVisible(pop, false);
+        });
+        pop.appendChild(item);
+    });
+}
+
+// Toggle the chapter popover; close the other popovers if open.
+elements.chapter.addEventListener('click', function (e) {
+    e.stopPropagation();
+    if (!fileInfo.content) {
+        toast('请先加载文件');
+        return;
+    }
+    const willShow = !isPopoverVisible(elements.chapterPop);
+    closePopovers();
+    if (willShow) {
+        rebuildChapterList();
+        setPopoverVisible(elements.chapterPop, true);
+    }
+});
+elements.chapterPop.addEventListener('click', function (e) {
+    e.stopPropagation();
 });
 
 /* ===== src/reader/jump-button.js ===== */
@@ -831,20 +996,90 @@ elements.load.addEventListener('click', function (e) {
 })();
 
 /* ===== src/ui/window.js ===== */
-// Panel dragging. Clicking the [移动] button toggles drag mode; while active,
-// mousemove deltas reposition the panel relative to its centered origin.
-let mouseMemory = [0, 0];
-let moveWindow = false
-elements.move.addEventListener('mousedown', function (e) {
-    mouseMemory = [e.clientX - mouseMemory[0], e.clientY - mouseMemory[1]];
-    moveWindow = !moveWindow;
+// Panel dragging and resizing (v2.1 "move well").
+//
+// Drag: hold the mouse anywhere on the toolbar (except buttons) and move.
+// Resize: grab the handle at the bottom-right corner of the panel.
+// Position and size persist in settings and are restored on init.
+
+const MIN_WIDTH = 320;
+const MIN_HEIGHT = 200;
+
+let dragState = null;   // { dx, dy } offset from panel top-left to cursor
+let resizeState = null; // { startX, startY, startW, startH }
+
+// Drag: mousedown on the toolbar background starts a drag; buttons/inputs
+// inside the toolbar keep their own behavior.
+elements.toolbar.addEventListener('mousedown', function (e) {
+    if (e.target !== elements.toolbar) return; // only drag from empty toolbar space
+    if (e.button !== 0) return;
+    dragState = {
+        dx: e.clientX - panelLeft(),
+        dy: e.clientY - panelTop(),
+    };
+    e.preventDefault();
 });
-document.documentElement.addEventListener('mousemove', function (e) {
-    if (moveWindow) {
-        elements.panel.style.left = `calc(50% + ${e.clientX - mouseMemory[0]}px)`;
-        elements.panel.style.top = `calc(50% + ${e.clientY - mouseMemory[1]}px)`;
+
+document.addEventListener('mousemove', function (e) {
+    if (dragState) {
+        elements.panel.style.left = (e.clientX - dragState.dx) + 'px';
+        elements.panel.style.top = (e.clientY - dragState.dy) + 'px';
+    } else if (resizeState) {
+        const w = Math.max(MIN_WIDTH, resizeState.startW + (e.clientX - resizeState.startX));
+        const h = Math.max(MIN_HEIGHT, resizeState.startH + (e.clientY - resizeState.startY));
+        elements.panel.style.width = w + 'px';
+        elements.panel.style.height = h + 'px';
     }
 });
+
+document.addEventListener('mouseup', function () {
+    if (dragState) {
+        dragState = null;
+        setSetting('panelLeft', panelLeft());
+        setSetting('panelTop', panelTop());
+    } else if (resizeState) {
+        resizeState = null;
+        setSetting('panelWidth', elements.panel.offsetWidth);
+        setSetting('panelHeight', elements.panel.offsetHeight);
+        // Re-paginate the book to the new height (page mode only).
+        if (fileInfo.content && !isScrollMode()) {
+            jump(fileInfo.bookmark);
+        }
+    }
+});
+
+// Resize handle.
+elements.resize.addEventListener('mousedown', function (e) {
+    if (e.button !== 0) return;
+    resizeState = {
+        startX: e.clientX,
+        startY: e.clientY,
+        startW: elements.panel.offsetWidth,
+        startH: elements.panel.offsetHeight,
+    };
+    e.preventDefault();
+    e.stopPropagation();
+});
+
+function panelLeft() {
+    return elements.panel.getBoundingClientRect().left;
+}
+function panelTop() {
+    return elements.panel.getBoundingClientRect().top;
+}
+
+// Restore persisted geometry on init (lifecycle calls this). Position is
+// stored as absolute px — the panel's CSS default (top:50%; left:50%) is
+// overridden the first time the user drags it.
+function applyPanelGeometry() {
+    const s = getSettings();
+    if (s.panelWidth) elements.panel.style.width = s.panelWidth + 'px';
+    if (s.panelHeight) elements.panel.style.height = s.panelHeight + 'px';
+    if (s.panelLeft !== undefined && s.panelLeft !== null) {
+        elements.panel.style.left = s.panelLeft + 'px';
+        elements.panel.style.top = s.panelTop + 'px';
+    }
+}
 
 /* ===== src/lifecycle.js ===== */
 // Paging gestures: left click advances, right click goes back. The default
@@ -948,16 +1183,15 @@ function wakeUp() {
 }
 
 function sleepDown() {
-    if (!moveWindow) {
-        closePopovers();
-        elements.panel.style.visibility = 'hidden';
-    }
+    closePopovers();
+    elements.panel.style.visibility = 'hidden';
 }
 
 // INIT: restore settings and the previously loaded book from storage.
 window.LOAFING_READER_INIT = false;
 function init() {
     applySettings();
+    applyPanelGeometry();
     initScrollMode();
 
     const lfFileName = GM_getValue('lf_file_name');
