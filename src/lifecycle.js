@@ -1,9 +1,14 @@
-// Paging gestures: left click advances, right click goes back. The default
-// context menu is suppressed inside the reading area.
+// Paging gestures: left click advances, right click goes back. While a
+// move/resize mode is active, clicking the content FINISHES the edit instead
+// of paging — exiting the mode takes priority over navigation.
 elements.content.addEventListener('contextmenu', function (e) {
     e.preventDefault();
 });
 elements.content.addEventListener('mousedown', function (e) {
+    if (opMode) {
+        exitOpMode();
+        return;
+    }
     if (e.button === 0) {
         next();
     }
@@ -34,7 +39,7 @@ document.addEventListener('keydown', function (event) {
             applySettings();
             return;
         }
-        if (key === 'm') {
+        if (key === 'v') {
             wakeUp();
             enterOpMode('move');
             return;
@@ -99,29 +104,13 @@ elements.panel.addEventListener('click', function () {
     closePopovers();
 });
 
-// Auto-hide with a grace period: leaving the panel starts a 400ms timer;
-// re-entering cancels it. While a drag/resize is in progress (panelOperating,
-// defined in ui/window.js) the panel never auto-hides — the cursor is
-// expected to leave the panel bounds mid-operation.
-const HIDE_DELAY = 400;
-let hideTimer = null;
-
-function cancelHide() {
-    if (hideTimer) {
-        clearTimeout(hideTimer);
-        hideTimer = null;
-    }
-}
-
-elements.panel.addEventListener('mouseenter', cancelHide);
+// Auto-hide: leaving the panel hides it INSTANTLY. Stealth beats polish —
+// no grace period. The only exception is an active move/resize mode, where
+// the cursor is expected to leave the panel bounds.
 elements.panel.addEventListener('mouseleave', function (event) {
-    cancelHide();
-    hideTimer = setTimeout(function () {
-        hideTimer = null;
-        if (!panelOperating) {
-            sleepDown();
-        }
-    }, HIDE_DELAY);
+    if (!panelOperating) {
+        sleepDown();
+    }
 })
 elements.panel.style.visibility = 'hidden';
 elements.trigger.addEventListener('click', function (event) {
@@ -129,7 +118,6 @@ elements.trigger.addEventListener('click', function (event) {
 })
 
 function wakeUp() {
-    cancelHide();
     elements.panel.style.visibility = 'visible';
     if (!window.LOAFING_READER_INIT) {
         init();

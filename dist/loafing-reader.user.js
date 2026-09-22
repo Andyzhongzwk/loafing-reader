@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         摸鱼小说阅读器 Loafing-Reader
 // @namespace    hanayabuki-loafing-reader
-// @version      2.3.1
+// @version      2.3.2
 // @description  内嵌浏览器里用来上班摸鱼看小说
 // @author       HanaYabuki
 // @match        *://*/*
@@ -978,8 +978,14 @@ elements.chapterPop.addEventListener('click', function (e) {
 //
 // The v2.1 grip (⠿) and corner triangle are gone — buttons only, more stealth.
 
-const MIN_WIDTH = 320;
-const MIN_HEIGHT = 200;
+// Minimum sizes. The toolbar needs less room when it is allowed to wrap, and
+// needs no room at all in mini mode (header hidden) — so the floor depends
+// on the header state. This lets the text strip shrink to a genuinely tiny
+// sliver when the user wants maximum stealth.
+const MIN_HEIGHT = 80;
+function minWidth() {
+    return getSettings().showHeader ? 120 : 60;
+}
 
 let panelOperating = false; // suppresses auto-hide; also true while dragging
 let opMode = null;          // null | 'move' | 'resize'
@@ -990,7 +996,6 @@ function enterOpMode(mode) {
     if (opMode === mode) { exitOpMode(); return; }
     opMode = mode;
     panelOperating = true;
-    cancelHide();
     elements.panel.style.visibility = 'visible'; // works even from mini mode
     elements.panel.classList.add('lf-opmode');
     opAnchor = { x: lastMouse.x, y: lastMouse.y };
@@ -1031,7 +1036,7 @@ document.addEventListener('mousemove', function (e) {
         elements.panel.style.left = (opGeometry.left + dx) + 'px';
         elements.panel.style.top = (opGeometry.top + dy) + 'px';
     } else {
-        elements.panel.style.width = Math.max(MIN_WIDTH, opGeometry.width + dx) + 'px';
+        elements.panel.style.width = Math.max(minWidth(), opGeometry.width + dx) + 'px';
         // Fixed line count derives height from lines — ignore vertical drag.
         if (!getSettings().visibleLines) {
             elements.panel.style.height = Math.max(MIN_HEIGHT, opGeometry.height + dy) + 'px';
@@ -1067,12 +1072,17 @@ function applyPanelGeometry() {
 }
 
 /* ===== src/lifecycle.js ===== */
-// Paging gestures: left click advances, right click goes back. The default
-// context menu is suppressed inside the reading area.
+// Paging gestures: left click advances, right click goes back. While a
+// move/resize mode is active, clicking the content FINISHES the edit instead
+// of paging — exiting the mode takes priority over navigation.
 elements.content.addEventListener('contextmenu', function (e) {
     e.preventDefault();
 });
 elements.content.addEventListener('mousedown', function (e) {
+    if (opMode) {
+        exitOpMode();
+        return;
+    }
     if (e.button === 0) {
         next();
     }
@@ -1103,7 +1113,7 @@ document.addEventListener('keydown', function (event) {
             applySettings();
             return;
         }
-        if (key === 'm') {
+        if (key === 'v') {
             wakeUp();
             enterOpMode('move');
             return;
@@ -1168,29 +1178,13 @@ elements.panel.addEventListener('click', function () {
     closePopovers();
 });
 
-// Auto-hide with a grace period: leaving the panel starts a 400ms timer;
-// re-entering cancels it. While a drag/resize is in progress (panelOperating,
-// defined in ui/window.js) the panel never auto-hides — the cursor is
-// expected to leave the panel bounds mid-operation.
-const HIDE_DELAY = 400;
-let hideTimer = null;
-
-function cancelHide() {
-    if (hideTimer) {
-        clearTimeout(hideTimer);
-        hideTimer = null;
-    }
-}
-
-elements.panel.addEventListener('mouseenter', cancelHide);
+// Auto-hide: leaving the panel hides it INSTANTLY. Stealth beats polish —
+// no grace period. The only exception is an active move/resize mode, where
+// the cursor is expected to leave the panel bounds.
 elements.panel.addEventListener('mouseleave', function (event) {
-    cancelHide();
-    hideTimer = setTimeout(function () {
-        hideTimer = null;
-        if (!panelOperating) {
-            sleepDown();
-        }
-    }, HIDE_DELAY);
+    if (!panelOperating) {
+        sleepDown();
+    }
 })
 elements.panel.style.visibility = 'hidden';
 elements.trigger.addEventListener('click', function (event) {
@@ -1198,7 +1192,6 @@ elements.trigger.addEventListener('click', function (event) {
 })
 
 function wakeUp() {
-    cancelHide();
     elements.panel.style.visibility = 'visible';
     if (!window.LOAFING_READER_INIT) {
         init();

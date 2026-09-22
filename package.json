@@ -1,6 +1,6 @@
 {
   "name": "loafing-reader",
-  "version": "2.3.1",
+  "version": "2.3.2",
   "description": "摸鱼小说阅读器 — a userscript novel reader for, ahem, reading at work",
   "private": true,
   "scripts": {

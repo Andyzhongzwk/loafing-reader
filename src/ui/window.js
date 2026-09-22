@@ -10,8 +10,14 @@
 //
 // The v2.1 grip (⠿) and corner triangle are gone — buttons only, more stealth.
 
-const MIN_WIDTH = 320;
-const MIN_HEIGHT = 200;
+// Minimum sizes. The toolbar needs less room when it is allowed to wrap, and
+// needs no room at all in mini mode (header hidden) — so the floor depends
+// on the header state. This lets the text strip shrink to a genuinely tiny
+// sliver when the user wants maximum stealth.
+const MIN_HEIGHT = 80;
+function minWidth() {
+    return getSettings().showHeader ? 120 : 60;
+}
 
 let panelOperating = false; // suppresses auto-hide; also true while dragging
 let opMode = null;          // null | 'move' | 'resize'
@@ -22,7 +28,6 @@ function enterOpMode(mode) {
     if (opMode === mode) { exitOpMode(); return; }
     opMode = mode;
     panelOperating = true;
-    cancelHide();
     elements.panel.style.visibility = 'visible'; // works even from mini mode
     elements.panel.classList.add('lf-opmode');
     opAnchor = { x: lastMouse.x, y: lastMouse.y };
@@ -63,7 +68,7 @@ document.addEventListener('mousemove', function (e) {
         elements.panel.style.left = (opGeometry.left + dx) + 'px';
         elements.panel.style.top = (opGeometry.top + dy) + 'px';
     } else {
-        elements.panel.style.width = Math.max(MIN_WIDTH, opGeometry.width + dx) + 'px';
+        elements.panel.style.width = Math.max(minWidth(), opGeometry.width + dx) + 'px';
         // Fixed line count derives height from lines — ignore vertical drag.
         if (!getSettings().visibleLines) {
             elements.panel.style.height = Math.max(MIN_HEIGHT, opGeometry.height + dy) + 'px';

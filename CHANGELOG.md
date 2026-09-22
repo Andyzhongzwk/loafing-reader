@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.3.2] - 2026-09-22
+
+### Changed
+- Auto-hide grace period removed: mouseleave hides the panel instantly
+  (stealth over polish); move/resize modes still suppress auto-hide.
+- Clicking the content during a move/resize mode finishes the edit
+  instead of paging — exiting the mode takes priority over navigation.
+- Move shortcut changed from Alt+M to Alt+V.
+- Minimum width is now header-aware: 120px with the header, 60px in
+  mini mode (header hidden); minimum height stays 80px.
+
 ## [2.3.1] - 2026-09-22
 
 ### Fixed
