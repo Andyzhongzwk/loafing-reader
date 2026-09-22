@@ -185,29 +185,12 @@ const cssText = `
         color: #888;
     }
 
-    /* Move grip at the left end of the toolbar */
-    .lf-move-handle {
-        cursor: move;
-        padding: 0 0.4em;
-        color: var(--lf-btn-color);
-        user-select: none;
-    }
-    .lf-move-handle:hover {
-        color: var(--lf-btn-color-hover);
-    }
-
-    /* Resize handle (bottom-right corner) */
-    .lf-resize-handle {
-        position: absolute;
-        right: 0;
-        bottom: 0;
-        width: 14px;
-        height: 14px;
-        cursor: nwse-resize;
-        background: linear-gradient(135deg, transparent 50%, var(--lf-btn-color) 50%);
-        opacity: 0.5;
-    }
-    .lf-resize-handle:hover {
-        opacity: 1;
+    /* Move/resize mode: highlight the panel edge so it's visible. */
+    #lf-panel.lf-opmode {
+        outline: 2px dashed var(--lf-btn-color);
+        outline-offset: 2px;
     }
 `;
+
+// Inject the stylesheet. (v2.1 and earlier this lived in ui/theme.js.)
+GM_addStyle(cssText);

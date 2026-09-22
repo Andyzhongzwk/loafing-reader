@@ -37,7 +37,6 @@ const MODULES = [
     'src/reader/render.js',
     'src/reader/scroll.js',
     'src/ui/panel.js',
-    'src/ui/theme.js',
     'src/ui/settings.js',
     'src/reader/encoding.js',
     'src/reader/file.js',

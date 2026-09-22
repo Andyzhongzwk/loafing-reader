@@ -4,6 +4,27 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.3.0] - 2026-09-22
+
+"Explicit control" release — mode-based move/resize and Alt-based shortcuts.
+
+### Added
+- Move/resize MODES: Alt+M (move) / Alt+S (resize), or the [移动]/[缩放]
+  toolbar buttons. While active: the panel edge is highlighted (dashed
+  outline), auto-hide is suppressed so it stays awake, the panel follows the
+  mouse, and clicking / Esc / the same shortcut exits and persists.
+- Alt+H toggles header (mini mode); Alt+R wakes. All shortcuts are Alt-based
+  and work regardless of panel visibility or header state — the panel wakes
+  first. Plain-letter shortcuts (h, [, ]) are gone, so typing can never
+  trigger the reader.
+- Theme is now a 明亮/暗色 choice in the settings popover.
+
+### Changed
+- Removed the ⠿ move grip and the bottom-right resize triangle; both
+  operations are buttons/modes now (more stealth, no accidental triggers).
+- Toolbar: [移动] [缩放] [章节] info [设置]. Theme moved into settings;
+  toolbar buttons can no longer be squeezed out of reach by resizing.
+
 ## [2.2.0] - 2026-09-22
 
 "Compact mode" release — the panel can shrink to a pure text strip.

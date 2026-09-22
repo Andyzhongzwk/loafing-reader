@@ -12,6 +12,7 @@ const DEFAULT_SETTINGS = {
     encoding: 'auto',      // 'auto' | 'utf-8' | 'gb18030'
     showHeader: true,      // false = mini mode: toolbar hidden, text only
     visibleLines: 0,       // 0 = auto (fill container); 1–10 = fixed line count
+    theme: 'light',        // 'light' | 'dark'
     panelLeft: null,       // persisted geometry (null = centered default)
     panelTop: null,
     panelWidth: null,
@@ -50,6 +51,7 @@ function applySettings() {
     elements.text.style.opacity = String(s.textOpacity);
     elements.panel.style.setProperty('--lf-bg-alpha', String(s.bgOpacity));
     elements.panel.setAttribute('lf-mode', s.mode);
+    elements.panel.setAttribute('lf-theme', s.theme);
     elements.panel.setAttribute('lf-header', s.showHeader ? 'show' : 'hidden');
 
     // Fixed line count: the panel height is derived from lines × line-height

@@ -88,6 +88,10 @@ function buildSettingsPanel() {
         { value: true, label: '显示' },
         { value: false, label: '隐藏' },
     ]);
+    settingsChoice('主题', 'theme', [
+        { value: 'light', label: '明亮' },
+        { value: 'dark', label: '暗色' },
+    ]);
 }
 
 // Toggle the settings popover; close the chapter popover if open.

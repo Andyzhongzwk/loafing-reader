@@ -12,20 +12,39 @@ elements.content.addEventListener('mousedown', function (e) {
     }
 });
 
-// Wake up & sleep down. The panel starts hidden; Alt+R or the trigger
-// hotspot shows it, and moving the mouse out hides it again (unless the
-// window is being dragged).
+// Keyboard (v2.3): all shortcuts are Alt-based so plain typing can never
+// trigger them. Alt+R wakes the panel; Alt+H toggles the header; Alt+M /
+// Alt+S enter move/resize modes. These work whether or not the panel is
+// visible and whether or not the header is shown — the panel wakes first.
 //
-// NOTE: v1.3 assigned document.onkeydown, clobbering the host page's own
-// handler. v2.0 uses addEventListener and ignores keys while the panel is
-// hidden or while typing in an input.
+// v1.3 assigned document.onkeydown, clobbering the host page's own handler;
+// we use addEventListener instead.
 document.addEventListener('keydown', function (event) {
     event = event || window.event;
 
-    // Global wake-up shortcut works regardless of panel state.
-    if (event.altKey && (event.key === 'r' || event.key === 'R')) {
-        wakeUp();
-        return;
+    if (event.altKey) {
+        const key = (event.key || '').toLowerCase();
+        if (key === 'r') {
+            wakeUp();
+            return;
+        }
+        if (key === 'h') {
+            wakeUp();
+            setSetting('showHeader', !getSettings().showHeader);
+            applySettings();
+            return;
+        }
+        if (key === 'm') {
+            wakeUp();
+            enterOpMode('move');
+            return;
+        }
+        if (key === 's') {
+            wakeUp();
+            enterOpMode('resize');
+            return;
+        }
+        return; // other Alt combos belong to the browser/page
     }
 
     // Everything below only applies while the panel is visible.
@@ -63,17 +82,14 @@ document.addEventListener('keydown', function (event) {
             adjustFontSize(1);
             break;
         case 'Escape':
-            if (isPopoverVisible(elements.settingsPop) || isPopoverVisible(elements.chapterPop)) {
+            // Priority: exit move/resize mode > close popovers > hide panel.
+            if (opMode) {
+                exitOpMode();
+            } else if (isPopoverVisible(elements.settingsPop) || isPopoverVisible(elements.chapterPop)) {
                 closePopovers();
             } else {
                 sleepDown();
             }
-            break;
-        case 'h':
-        case 'H':
-            // Toggle header (mini mode). Only meaningful while a book is loaded.
-            setSetting('showHeader', !getSettings().showHeader);
-            applySettings();
             break;
     }
 });

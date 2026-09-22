@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         摸鱼小说阅读器 Loafing-Reader
 // @namespace    hanayabuki-loafing-reader
-// @version      2.2.0
+// @version      2.3.0
 // @description  内嵌浏览器里用来上班摸鱼看小说
 // @author       HanaYabuki
 // @match        *://*/*
@@ -202,32 +202,15 @@ const cssText = `
         color: #888;
     }
 
-    /* Move grip at the left end of the toolbar */
-    .lf-move-handle {
-        cursor: move;
-        padding: 0 0.4em;
-        color: var(--lf-btn-color);
-        user-select: none;
-    }
-    .lf-move-handle:hover {
-        color: var(--lf-btn-color-hover);
-    }
-
-    /* Resize handle (bottom-right corner) */
-    .lf-resize-handle {
-        position: absolute;
-        right: 0;
-        bottom: 0;
-        width: 14px;
-        height: 14px;
-        cursor: nwse-resize;
-        background: linear-gradient(135deg, transparent 50%, var(--lf-btn-color) 50%);
-        opacity: 0.5;
-    }
-    .lf-resize-handle:hover {
-        opacity: 1;
+    /* Move/resize mode: highlight the panel edge so it's visible. */
+    #lf-panel.lf-opmode {
+        outline: 2px dashed var(--lf-btn-color);
+        outline-offset: 2px;
     }
 `;
+
+// Inject the stylesheet. (v2.1 and earlier this lived in ui/theme.js.)
+GM_addStyle(cssText);
 
 /* ===== src/storage.js ===== */
 // Settings storage. All user preferences live in one versioned JSON key so
@@ -244,6 +227,7 @@ const DEFAULT_SETTINGS = {
     encoding: 'auto',      // 'auto' | 'utf-8' | 'gb18030'
     showHeader: true,      // false = mini mode: toolbar hidden, text only
     visibleLines: 0,       // 0 = auto (fill container); 1–10 = fixed line count
+    theme: 'light',        // 'light' | 'dark'
     panelLeft: null,       // persisted geometry (null = centered default)
     panelTop: null,
     panelWidth: null,
@@ -282,6 +266,7 @@ function applySettings() {
     elements.text.style.opacity = String(s.textOpacity);
     elements.panel.style.setProperty('--lf-bg-alpha', String(s.bgOpacity));
     elements.panel.setAttribute('lf-mode', s.mode);
+    elements.panel.setAttribute('lf-theme', s.theme);
     elements.panel.setAttribute('lf-header', s.showHeader ? 'show' : 'hidden');
 
     // Fixed line count: the panel height is derived from lines × line-height
@@ -621,23 +606,22 @@ function initScrollMode() {
 /* ===== src/ui/panel.js ===== */
 // Build the panel DOM tree:
 //   #lf-panel
-//     #lf-toolbar (move grip, chapter button, info text, theme + settings
-//                  toggles, hidden file input)
+//     #lf-toolbar ([移动] [缩放] [章节], info text, [设置], hidden file input)
 //     #lf-content > #lf-text
 //     #lf-progress > #lf-progress-thumb   (scroll mode progress bar)
-//     #lf-settings-pop > #lf-settings-body   (settings popover; hosts 加载文件)
+//     #lf-settings-pop > #lf-settings-body   (settings popover; hosts
+//                                             加载/换书 + 主题 + 编码 choices)
 //     #lf-chapter-pop                         (chapter list popover)
 //     #lf-toasts                              (toast notifications)
-//     #lf-resize                              (resize handle, bottom-right)
-// Dragging uses the ⠿ grip; loading a book is inside the settings popover.
+// Move/resize are MODES (Alt+M / Alt+S or the toolbar buttons), not handles.
 // plus the #lf-trigger hotspot in the top-left corner.
 ce('div', 'panel', [
     ce('div', 'toolbar', [
-        ce('span', 'move', [], 'move-handle'),
         ce('input', 'fileholder', [], 'hidden'),
+        ce('span', 'move', [], 'item', 'btn'),
+        ce('span', 'resize', [], 'item', 'btn'),
         ce('span', 'chapter', [], 'item', 'btn'),
         ce('span', 'info', [], 'item'),
-        ce('span', 'color', [], 'item', 'btn'),
         ce('span', 'settings', [], 'item', 'btn'),
     ],),
     ce('div', 'content', [
@@ -651,31 +635,19 @@ ce('div', 'panel', [
     ], 'popover', 'hidden'),
     ce('div', 'chapter-pop', [], 'popover', 'hidden'),
     ce('div', 'toasts', []),
-    ce('div', 'resize', [], 'resize-handle'),
 ]);
 ce('div', 'trigger', [], 'trigger');
 
+elements.move.innerText = '[移动]';
+elements.resize.innerText = '[缩放]';
 elements.chapter.innerText = '[章节]';
-elements.move.innerText = '⠿';
-elements.move.title = '按住拖动面板';
 elements.fileholder.type = 'file';
 elements.fileholder.accept = '.txt';
 elements.info.innerText = '(无文件)';
-elements.color.innerText = '[主题]';
 elements.settings.innerText = '[设置]';
 
 document.documentElement.appendChild(elements.panel);
 document.documentElement.appendChild(elements.trigger);
-
-/* ===== src/ui/theme.js ===== */
-// Theme handling: inject styles once, then cycle light/dark on button click.
-GM_addStyle(cssText);
-const themes = ['light', 'dark'];
-let themeId = 1;
-elements.color.addEventListener('click', function () {
-    elements.panel.setAttribute('lf-theme', themes.at(themeId));
-    themeId = (themeId + 1) % themes.length;
-});
 
 /* ===== src/ui/settings.js ===== */
 // Settings popover: sliders and choice buttons for reading preferences.
@@ -767,6 +739,10 @@ function buildSettingsPanel() {
     settingsChoice('头部', 'showHeader', [
         { value: true, label: '显示' },
         { value: false, label: '隐藏' },
+    ]);
+    settingsChoice('主题', 'theme', [
+        { value: 'light', label: '明亮' },
+        { value: 'dark', label: '暗色' },
     ]);
 }
 
@@ -972,96 +948,99 @@ elements.chapterPop.addEventListener('click', function (e) {
 });
 
 /* ===== src/ui/window.js ===== */
-// Panel dragging and resizing (v2.1.1: explicit handles, hide-locked).
+// Panel move/resize (v2.3): explicit MODES instead of drag handles.
 //
-// Move: press and hold the ⠿ grip at the left end of the toolbar, then drag.
-// Resize: grab the handle at the bottom-right corner of the panel.
-// Both share the same interaction model: hold -> drag -> release.
+// Enter with Alt+M (move) / Alt+S (resize), or the toolbar buttons. While a
+// mode is active:
+//   - the panel edge is highlighted (lf-opmode class) so you can see it,
+//   - auto-hide is suppressed (panelOperating) — it stays awake,
+//   - moving the mouse moves/resizes the panel,
+//   - clicking, pressing Esc, or the same shortcut exits the mode and
+//     persists the new position/size.
 //
-// While either operation is active, panelOperating is true and the panel
-// must NOT auto-hide on mouseleave — the cursor is expected to leave the
-// panel bounds during a drag.
-//
-// Position and size persist in settings and are restored on init.
+// The v2.1 grip (⠿) and corner triangle are gone — buttons only, more stealth.
 
 const MIN_WIDTH = 320;
 const MIN_HEIGHT = 200;
 
-let dragState = null;   // { dx, dy } cursor offset from panel top-left
-let resizeState = null; // { startX, startY, startW, startH }
-let panelOperating = false;
+let panelOperating = false; // suppresses auto-hide; also true while dragging
+let opMode = null;          // null | 'move' | 'resize'
+let opAnchor = null;        // cursor position when the mode was entered
+let opGeometry = null;      // panel rect when the mode was entered
 
-// Move grip: mousedown on the grip starts a drag.
-elements.move.addEventListener('mousedown', function (e) {
-    if (e.button !== 0) return;
+function enterOpMode(mode) {
+    if (opMode === mode) { exitOpMode(); return; }
+    opMode = mode;
+    panelOperating = true;
+    cancelHide();
+    elements.panel.style.visibility = 'visible'; // works even from mini mode
+    elements.panel.classList.add('lf-opmode');
+    opAnchor = { x: lastMouse.x, y: lastMouse.y };
     const rect = elements.panel.getBoundingClientRect();
-    dragState = {
-        dx: e.clientX - rect.left,
-        dy: e.clientY - rect.top,
-    };
-    panelOperating = true;
-    e.preventDefault();
-    e.stopPropagation();
-});
+    opGeometry = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+    toast(mode === 'move' ? '移动模式：移动鼠标，点击或 Esc 退出' : '缩放模式：移动鼠标，点击或 Esc 退出');
+}
 
-// Resize handle.
-elements.resize.addEventListener('mousedown', function (e) {
-    if (e.button !== 0) return;
-    resizeState = {
-        startX: e.clientX,
-        startY: e.clientY,
-        startW: elements.panel.offsetWidth,
-        startH: elements.panel.offsetHeight,
-    };
-    panelOperating = true;
-    e.preventDefault();
-    e.stopPropagation();
-});
-
-document.addEventListener('mousemove', function (e) {
-    if (dragState) {
-        elements.panel.style.left = (e.clientX - dragState.dx) + 'px';
-        elements.panel.style.top = (e.clientY - dragState.dy) + 'px';
-    } else if (resizeState) {
-        const w = Math.max(MIN_WIDTH, resizeState.startW + (e.clientX - resizeState.startX));
-        elements.panel.style.width = w + 'px';
-        // When a fixed line count is set, the height is derived from the line
-        // count (see applySettings) — vertical resize is ignored in that case.
-        if (!getSettings().visibleLines) {
-            const h = Math.max(MIN_HEIGHT, resizeState.startH + (e.clientY - resizeState.startY));
-            elements.panel.style.height = h + 'px';
-        }
-    }
-});
-
-document.addEventListener('mouseup', function () {
-    if (dragState) {
-        dragState = null;
-        panelOperating = false;
-        const rect = elements.panel.getBoundingClientRect();
+function exitOpMode() {
+    if (!opMode) return;
+    const rect = elements.panel.getBoundingClientRect();
+    elements.panel.classList.remove('lf-opmode');
+    if (opMode === 'move') {
         setSetting('panelLeft', rect.left);
         setSetting('panelTop', rect.top);
-    } else if (resizeState) {
-        resizeState = null;
-        panelOperating = false;
-        setSetting('panelWidth', elements.panel.offsetWidth);
-        setSetting('panelHeight', elements.panel.offsetHeight);
-        // Re-paginate the book to the new height (page mode only).
+    } else {
+        setSetting('panelWidth', rect.width);
+        if (!getSettings().visibleLines) setSetting('panelHeight', rect.height);
         if (fileInfo.content && !isScrollMode()) {
-            jump(fileInfo.bookmark);
+            jump(fileInfo.bookmark); // re-paginate to the new height
+        }
+    }
+    opMode = null;
+    opGeometry = null;
+    panelOperating = false;
+}
+
+// Last known mouse position, tracked globally so a mode can anchor to it
+// even if the cursor hasn't moved since the hotkey was pressed.
+const lastMouse = { x: 0, y: 0 };
+document.addEventListener('mousemove', function (e) {
+    lastMouse.x = e.clientX;
+    lastMouse.y = e.clientY;
+    if (!opMode || !opGeometry) return;
+    const dx = e.clientX - opAnchor.x;
+    const dy = e.clientY - opAnchor.y;
+    if (opMode === 'move') {
+        elements.panel.style.left = (opGeometry.left + dx) + 'px';
+        elements.panel.style.top = (opGeometry.top + dy) + 'px';
+    } else {
+        elements.panel.style.width = Math.max(MIN_WIDTH, opGeometry.width + dx) + 'px';
+        // Fixed line count derives height from lines — ignore vertical drag.
+        if (!getSettings().visibleLines) {
+            elements.panel.style.height = Math.max(MIN_HEIGHT, opGeometry.height + dy) + 'px';
         }
     }
 });
 
-// Restore persisted geometry on init (lifecycle calls this). Position is
-// stored as absolute px — the panel's CSS default (top:50%; left:50%) is
-// overridden the first time the user drags it.
+// Click anywhere exits the active mode (buttons that ENTER a mode call
+// stopPropagation so the entering click doesn't immediately exit it).
+document.addEventListener('click', function () {
+    if (opMode) exitOpMode();
+});
+
+// Toolbar buttons.
+elements.move.addEventListener('click', function (e) {
+    e.stopPropagation();
+    enterOpMode('move');
+});
+elements.resize.addEventListener('click', function (e) {
+    e.stopPropagation();
+    enterOpMode('resize');
+});
+
+// Restore persisted geometry on init (lifecycle calls this).
 function applyPanelGeometry() {
     const s = getSettings();
     if (s.panelWidth) elements.panel.style.width = s.panelWidth + 'px';
-    // Height: a fixed line count derives its own height (applySettings ran
-    // just before this and already set it), so only restore a persisted
-    // height in auto mode.
     if (s.panelHeight && !s.visibleLines) elements.panel.style.height = s.panelHeight + 'px';
     if (s.panelLeft !== undefined && s.panelLeft !== null) {
         elements.panel.style.left = s.panelLeft + 'px';
@@ -1084,20 +1063,39 @@ elements.content.addEventListener('mousedown', function (e) {
     }
 });
 
-// Wake up & sleep down. The panel starts hidden; Alt+R or the trigger
-// hotspot shows it, and moving the mouse out hides it again (unless the
-// window is being dragged).
+// Keyboard (v2.3): all shortcuts are Alt-based so plain typing can never
+// trigger them. Alt+R wakes the panel; Alt+H toggles the header; Alt+M /
+// Alt+S enter move/resize modes. These work whether or not the panel is
+// visible and whether or not the header is shown — the panel wakes first.
 //
-// NOTE: v1.3 assigned document.onkeydown, clobbering the host page's own
-// handler. v2.0 uses addEventListener and ignores keys while the panel is
-// hidden or while typing in an input.
+// v1.3 assigned document.onkeydown, clobbering the host page's own handler;
+// we use addEventListener instead.
 document.addEventListener('keydown', function (event) {
     event = event || window.event;
 
-    // Global wake-up shortcut works regardless of panel state.
-    if (event.altKey && (event.key === 'r' || event.key === 'R')) {
-        wakeUp();
-        return;
+    if (event.altKey) {
+        const key = (event.key || '').toLowerCase();
+        if (key === 'r') {
+            wakeUp();
+            return;
+        }
+        if (key === 'h') {
+            wakeUp();
+            setSetting('showHeader', !getSettings().showHeader);
+            applySettings();
+            return;
+        }
+        if (key === 'm') {
+            wakeUp();
+            enterOpMode('move');
+            return;
+        }
+        if (key === 's') {
+            wakeUp();
+            enterOpMode('resize');
+            return;
+        }
+        return; // other Alt combos belong to the browser/page
     }
 
     // Everything below only applies while the panel is visible.
@@ -1135,17 +1133,14 @@ document.addEventListener('keydown', function (event) {
             adjustFontSize(1);
             break;
         case 'Escape':
-            if (isPopoverVisible(elements.settingsPop) || isPopoverVisible(elements.chapterPop)) {
+            // Priority: exit move/resize mode > close popovers > hide panel.
+            if (opMode) {
+                exitOpMode();
+            } else if (isPopoverVisible(elements.settingsPop) || isPopoverVisible(elements.chapterPop)) {
                 closePopovers();
             } else {
                 sleepDown();
             }
-            break;
-        case 'h':
-        case 'H':
-            // Toggle header (mini mode). Only meaningful while a book is loaded.
-            setSetting('showHeader', !getSettings().showHeader);
-            applySettings();
             break;
     }
 });

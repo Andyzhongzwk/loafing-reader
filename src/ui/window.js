@@ -1,93 +1,96 @@
-// Panel dragging and resizing (v2.1.1: explicit handles, hide-locked).
+// Panel move/resize (v2.3): explicit MODES instead of drag handles.
 //
-// Move: press and hold the ⠿ grip at the left end of the toolbar, then drag.
-// Resize: grab the handle at the bottom-right corner of the panel.
-// Both share the same interaction model: hold -> drag -> release.
+// Enter with Alt+M (move) / Alt+S (resize), or the toolbar buttons. While a
+// mode is active:
+//   - the panel edge is highlighted (lf-opmode class) so you can see it,
+//   - auto-hide is suppressed (panelOperating) — it stays awake,
+//   - moving the mouse moves/resizes the panel,
+//   - clicking, pressing Esc, or the same shortcut exits the mode and
+//     persists the new position/size.
 //
-// While either operation is active, panelOperating is true and the panel
-// must NOT auto-hide on mouseleave — the cursor is expected to leave the
-// panel bounds during a drag.
-//
-// Position and size persist in settings and are restored on init.
+// The v2.1 grip (⠿) and corner triangle are gone — buttons only, more stealth.
 
 const MIN_WIDTH = 320;
 const MIN_HEIGHT = 200;
 
-let dragState = null;   // { dx, dy } cursor offset from panel top-left
-let resizeState = null; // { startX, startY, startW, startH }
-let panelOperating = false;
+let panelOperating = false; // suppresses auto-hide; also true while dragging
+let opMode = null;          // null | 'move' | 'resize'
+let opAnchor = null;        // cursor position when the mode was entered
+let opGeometry = null;      // panel rect when the mode was entered
 
-// Move grip: mousedown on the grip starts a drag.
-elements.move.addEventListener('mousedown', function (e) {
-    if (e.button !== 0) return;
+function enterOpMode(mode) {
+    if (opMode === mode) { exitOpMode(); return; }
+    opMode = mode;
+    panelOperating = true;
+    cancelHide();
+    elements.panel.style.visibility = 'visible'; // works even from mini mode
+    elements.panel.classList.add('lf-opmode');
+    opAnchor = { x: lastMouse.x, y: lastMouse.y };
     const rect = elements.panel.getBoundingClientRect();
-    dragState = {
-        dx: e.clientX - rect.left,
-        dy: e.clientY - rect.top,
-    };
-    panelOperating = true;
-    e.preventDefault();
-    e.stopPropagation();
-});
+    opGeometry = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+    toast(mode === 'move' ? '移动模式：移动鼠标，点击或 Esc 退出' : '缩放模式：移动鼠标，点击或 Esc 退出');
+}
 
-// Resize handle.
-elements.resize.addEventListener('mousedown', function (e) {
-    if (e.button !== 0) return;
-    resizeState = {
-        startX: e.clientX,
-        startY: e.clientY,
-        startW: elements.panel.offsetWidth,
-        startH: elements.panel.offsetHeight,
-    };
-    panelOperating = true;
-    e.preventDefault();
-    e.stopPropagation();
-});
-
-document.addEventListener('mousemove', function (e) {
-    if (dragState) {
-        elements.panel.style.left = (e.clientX - dragState.dx) + 'px';
-        elements.panel.style.top = (e.clientY - dragState.dy) + 'px';
-    } else if (resizeState) {
-        const w = Math.max(MIN_WIDTH, resizeState.startW + (e.clientX - resizeState.startX));
-        elements.panel.style.width = w + 'px';
-        // When a fixed line count is set, the height is derived from the line
-        // count (see applySettings) — vertical resize is ignored in that case.
-        if (!getSettings().visibleLines) {
-            const h = Math.max(MIN_HEIGHT, resizeState.startH + (e.clientY - resizeState.startY));
-            elements.panel.style.height = h + 'px';
-        }
-    }
-});
-
-document.addEventListener('mouseup', function () {
-    if (dragState) {
-        dragState = null;
-        panelOperating = false;
-        const rect = elements.panel.getBoundingClientRect();
+function exitOpMode() {
+    if (!opMode) return;
+    const rect = elements.panel.getBoundingClientRect();
+    elements.panel.classList.remove('lf-opmode');
+    if (opMode === 'move') {
         setSetting('panelLeft', rect.left);
         setSetting('panelTop', rect.top);
-    } else if (resizeState) {
-        resizeState = null;
-        panelOperating = false;
-        setSetting('panelWidth', elements.panel.offsetWidth);
-        setSetting('panelHeight', elements.panel.offsetHeight);
-        // Re-paginate the book to the new height (page mode only).
+    } else {
+        setSetting('panelWidth', rect.width);
+        if (!getSettings().visibleLines) setSetting('panelHeight', rect.height);
         if (fileInfo.content && !isScrollMode()) {
-            jump(fileInfo.bookmark);
+            jump(fileInfo.bookmark); // re-paginate to the new height
+        }
+    }
+    opMode = null;
+    opGeometry = null;
+    panelOperating = false;
+}
+
+// Last known mouse position, tracked globally so a mode can anchor to it
+// even if the cursor hasn't moved since the hotkey was pressed.
+const lastMouse = { x: 0, y: 0 };
+document.addEventListener('mousemove', function (e) {
+    lastMouse.x = e.clientX;
+    lastMouse.y = e.clientY;
+    if (!opMode || !opGeometry) return;
+    const dx = e.clientX - opAnchor.x;
+    const dy = e.clientY - opAnchor.y;
+    if (opMode === 'move') {
+        elements.panel.style.left = (opGeometry.left + dx) + 'px';
+        elements.panel.style.top = (opGeometry.top + dy) + 'px';
+    } else {
+        elements.panel.style.width = Math.max(MIN_WIDTH, opGeometry.width + dx) + 'px';
+        // Fixed line count derives height from lines — ignore vertical drag.
+        if (!getSettings().visibleLines) {
+            elements.panel.style.height = Math.max(MIN_HEIGHT, opGeometry.height + dy) + 'px';
         }
     }
 });
 
-// Restore persisted geometry on init (lifecycle calls this). Position is
-// stored as absolute px — the panel's CSS default (top:50%; left:50%) is
-// overridden the first time the user drags it.
+// Click anywhere exits the active mode (buttons that ENTER a mode call
+// stopPropagation so the entering click doesn't immediately exit it).
+document.addEventListener('click', function () {
+    if (opMode) exitOpMode();
+});
+
+// Toolbar buttons.
+elements.move.addEventListener('click', function (e) {
+    e.stopPropagation();
+    enterOpMode('move');
+});
+elements.resize.addEventListener('click', function (e) {
+    e.stopPropagation();
+    enterOpMode('resize');
+});
+
+// Restore persisted geometry on init (lifecycle calls this).
 function applyPanelGeometry() {
     const s = getSettings();
     if (s.panelWidth) elements.panel.style.width = s.panelWidth + 'px';
-    // Height: a fixed line count derives its own height (applySettings ran
-    // just before this and already set it), so only restore a persisted
-    // height in auto mode.
     if (s.panelHeight && !s.visibleLines) elements.panel.style.height = s.panelHeight + 'px';
     if (s.panelLeft !== undefined && s.panelLeft !== null) {
         elements.panel.style.left = s.panelLeft + 'px';
