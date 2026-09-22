@@ -13,6 +13,7 @@ const DEFAULT_SETTINGS = {
     showHeader: true,      // false = mini mode: toolbar hidden, text only
     visibleLines: 0,       // 0 = auto (fill container); 1–10 = fixed line count
     theme: 'light',        // 'light' | 'dark'
+    hideOnBlur: false,     // true = hide the panel as soon as the window loses focus
     panelLeft: null,       // persisted geometry (null = centered default)
     panelTop: null,
     panelWidth: null,

@@ -123,7 +123,11 @@ const document = {
 };
 const sandbox = {
     document,
-    window: {},
+    window: {
+        listeners: {},
+        addEventListener(type, fn) { (this.listeners[type] ||= []).push(fn); },
+        fire(type, event = {}) { (this.listeners[type] || []).forEach(fn => fn(event)); },
+    },
     console,
     alert: () => { throw new Error('alert() must not be called in v2.0'); },
     prompt: () => null,
@@ -311,6 +315,15 @@ check('mini mode shrinks height (no toolbar)', parseInt(lf.elements.panel.style.
 lf.setSetting('visibleLines', 0);
 lf.setSetting('showHeader', true);
 lf.applySettings();
+
+// v2.4: blur auto-hide is opt-in via settings (default off).
+lf.wakeUp();
+sandbox.window.fire('blur');
+check('blur ignored when disabled', panel.style.visibility === 'visible');
+lf.setSetting('hideOnBlur', true);
+sandbox.window.fire('blur');
+check('blur hides panel when enabled', panel.style.visibility === 'hidden');
+lf.setSetting('hideOnBlur', false);
 
 // ---- Summary ----------------------------------------------------------------
 const failed = results.filter(([, ok]) => !ok);

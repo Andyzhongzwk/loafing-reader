@@ -112,6 +112,18 @@ elements.panel.addEventListener('mouseleave', function (event) {
         sleepDown();
     }
 })
+
+// Blur auto-hide (opt-in, v2.4): hide the panel the moment the window loses
+// focus — switching tabs, Alt+Tab to another app, minimizing. This covers the
+// blind spot where the cursor is still on the panel, so mouseleave never
+// fires, during a panicked window switch. Off by default; enable in settings.
+// A window switch is the strongest "hide now" signal, so this hides even
+// during an active move/resize mode.
+window.addEventListener('blur', function () {
+    if (getSettings().hideOnBlur && elements.panel.style.visibility === 'visible') {
+        sleepDown();
+    }
+});
 elements.panel.style.visibility = 'hidden';
 elements.trigger.addEventListener('click', function (event) {
     wakeUp();

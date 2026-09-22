@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         摸鱼小说阅读器 Loafing-Reader
 // @namespace    hanayabuki-loafing-reader
-// @version      2.3.2
+// @version      2.4.0
 // @description  内嵌浏览器里用来上班摸鱼看小说
 // @author       HanaYabuki
 // @match        *://*/*
@@ -244,6 +244,7 @@ const DEFAULT_SETTINGS = {
     showHeader: true,      // false = mini mode: toolbar hidden, text only
     visibleLines: 0,       // 0 = auto (fill container); 1–10 = fixed line count
     theme: 'light',        // 'light' | 'dark'
+    hideOnBlur: false,     // true = hide the panel as soon as the window loses focus
     panelLeft: null,       // persisted geometry (null = centered default)
     panelTop: null,
     panelWidth: null,
@@ -758,6 +759,10 @@ function buildSettingsPanel() {
         { value: true, label: '显示' },
         { value: false, label: '隐藏' },
     ]);
+    settingsChoice('失焦隐藏', 'hideOnBlur', [
+        { value: true, label: '开' },
+        { value: false, label: '关' },
+    ]);
     settingsChoice('主题', 'theme', [
         { value: 'light', label: '明亮' },
         { value: 'dark', label: '暗色' },
@@ -1186,6 +1191,18 @@ elements.panel.addEventListener('mouseleave', function (event) {
         sleepDown();
     }
 })
+
+// Blur auto-hide (opt-in, v2.4): hide the panel the moment the window loses
+// focus — switching tabs, Alt+Tab to another app, minimizing. This covers the
+// blind spot where the cursor is still on the panel, so mouseleave never
+// fires, during a panicked window switch. Off by default; enable in settings.
+// A window switch is the strongest "hide now" signal, so this hides even
+// during an active move/resize mode.
+window.addEventListener('blur', function () {
+    if (getSettings().hideOnBlur && elements.panel.style.visibility === 'visible') {
+        sleepDown();
+    }
+});
 elements.panel.style.visibility = 'hidden';
 elements.trigger.addEventListener('click', function (event) {
     wakeUp();

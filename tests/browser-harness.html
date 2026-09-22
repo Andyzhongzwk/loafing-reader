@@ -250,6 +250,7 @@ const DEFAULT_SETTINGS = {
     showHeader: true,      // false = mini mode: toolbar hidden, text only
     visibleLines: 0,       // 0 = auto (fill container); 1–10 = fixed line count
     theme: 'light',        // 'light' | 'dark'
+    hideOnBlur: false,     // true = hide the panel as soon as the window loses focus
     panelLeft: null,       // persisted geometry (null = centered default)
     panelTop: null,
     panelWidth: null,
@@ -764,6 +765,10 @@ function buildSettingsPanel() {
         { value: true, label: '显示' },
         { value: false, label: '隐藏' },
     ]);
+    settingsChoice('失焦隐藏', 'hideOnBlur', [
+        { value: true, label: '开' },
+        { value: false, label: '关' },
+    ]);
     settingsChoice('主题', 'theme', [
         { value: 'light', label: '明亮' },
         { value: 'dark', label: '暗色' },
@@ -1192,6 +1197,18 @@ elements.panel.addEventListener('mouseleave', function (event) {
         sleepDown();
     }
 })
+
+// Blur auto-hide (opt-in, v2.4): hide the panel the moment the window loses
+// focus — switching tabs, Alt+Tab to another app, minimizing. This covers the
+// blind spot where the cursor is still on the panel, so mouseleave never
+// fires, during a panicked window switch. Off by default; enable in settings.
+// A window switch is the strongest "hide now" signal, so this hides even
+// during an active move/resize mode.
+window.addEventListener('blur', function () {
+    if (getSettings().hideOnBlur && elements.panel.style.visibility === 'visible') {
+        sleepDown();
+    }
+});
 elements.panel.style.visibility = 'hidden';
 elements.trigger.addEventListener('click', function (event) {
     wakeUp();
@@ -1364,6 +1381,24 @@ document.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: -40
 document.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
 check('mini mode allows <120px width', panel.getBoundingClientRect().width <= 120);
 document.dispatchEvent(new KeyboardEvent('keydown', { key: 'h', altKey: true, bubbles: true })); // restore header
+
+// v2.4: blur auto-hide is opt-in via settings (default off)
+window.dispatchEvent(new Event('blur'));
+check('blur ignored when disabled', panel.style.visibility === 'visible');
+const setRows = document.querySelectorAll('.lf-set-row');
+let blurRow = null;
+setRows.forEach(function (r) {
+    const lab = r.querySelector('.lf-set-label');
+    if (lab && lab.textContent === '失焦隐藏') blurRow = r;
+});
+check('blur setting row exists', !!blurRow);
+const blurChoices = blurRow.querySelectorAll('.lf-set-choice');
+blurChoices[0].click(); // 开
+window.dispatchEvent(new Event('blur'));
+check('blur hides panel when enabled', panel.style.visibility === 'hidden');
+blurChoices[1].click(); // restore 关
+document.dispatchEvent(new KeyboardEvent('keydown', { key: 'r', altKey: true, bubbles: true })); // wake for later checks
+
 
 // v2.3.1: narrow the panel — the toolbar must WRAP and grow, not overflow
 panel.style.width = '200px'; // force the toolbar to wrap

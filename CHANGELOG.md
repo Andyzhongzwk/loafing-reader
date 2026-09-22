@@ -4,6 +4,17 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.4.0] - 2026-09-22
+
+### Added
+- Opt-in "hide on blur": when enabled in settings (设置 → 失焦隐藏), the panel
+  hides the instant the window loses focus — switching tabs, Alt+Tab to
+  another app, minimizing. This covers the blind spot where the cursor is
+  still on the panel during a panicked window switch, so mouseleave never
+  fires. A window switch is treated as the strongest hide signal: it hides
+  even during an active move/resize mode. Default off so dual-monitor /
+  split-screen setups are not disturbed.
+
 ## [2.3.2] - 2026-09-22
 
 ### Changed
