@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         摸鱼小说阅读器 Loafing-Reader
 // @namespace    hanayabuki-loafing-reader
-// @version      2.4.1
+// @version      2.4.2
 // @description  内嵌浏览器里用来上班摸鱼看小说
 // @author       HanaYabuki
 // @match        *://*/*
@@ -660,18 +660,17 @@ function initScrollMode() {
 /* ===== src/ui/panel.js ===== */
 // Build the panel DOM tree:
 //   #lf-panel
-//     #lf-toolbar ([移动] [缩放] [章节], info text, [设置], hidden file input)
+//     #lf-toolbar ([移动] [缩放] [章节], info text, [设置])
 //     #lf-content > #lf-text
 //     #lf-progress > #lf-progress-thumb   (scroll mode progress bar)
 //     #lf-settings-pop > #lf-settings-body   (settings popover; hosts
 //                                             加载/换书 + 主题 + 编码 choices)
 //     #lf-chapter-pop                         (chapter list popover)
 //     #lf-toasts                              (toast notifications)
-// Move/resize are MODES (Alt+M / Alt+S or the toolbar buttons), not handles.
+// Move/resize are MODES (Alt+V / Alt+S or the toolbar buttons), not handles.
 // plus the #lf-trigger hotspot in the top-left corner.
 ce('div', 'panel', [
     ce('div', 'toolbar', [
-        ce('input', 'fileholder', [], 'hidden'),
         ce('span', 'move', [], 'item', 'btn'),
         ce('span', 'resize', [], 'item', 'btn'),
         ce('span', 'chapter', [], 'item', 'btn'),
@@ -692,6 +691,11 @@ ce('div', 'panel', [
 ]);
 ce('div', 'trigger', [], 'trigger');
 
+// Hidden native file input. Deliberately NOT on the toolbar: despite the
+// lf-hidden class some sites' CSS made the native "选择文件" widget render
+// anyway. It lives outside the panel; 设置 → 加载/换书 clicks it directly.
+ce('input', 'fileholder', [], 'hidden');
+
 elements.move.innerText = '[移动]';
 elements.resize.innerText = '[缩放]';
 elements.chapter.innerText = '[章节]';
@@ -702,6 +706,7 @@ elements.settings.innerText = '[设置]';
 
 document.documentElement.appendChild(elements.panel);
 document.documentElement.appendChild(elements.trigger);
+document.documentElement.appendChild(elements.fileholder);
 
 /* ===== src/ui/settings.js ===== */
 // Settings popover: sliders and choice buttons for reading preferences.
@@ -790,7 +795,7 @@ function buildSettingsPanel() {
         { value: 'gb18030', label: 'GB18030' },
     ]);
     settingsSlider('行数', 'visibleLines', 0, 10, 1, function (v) { return v === 0 ? '自动' : v + '行'; });
-    settingsChoice('头部', 'showHeader', [
+    settingsChoice('头部 (Alt+H)', 'showHeader', [
         { value: true, label: '显示' },
         { value: false, label: '隐藏' },
     ]);
@@ -802,6 +807,28 @@ function buildSettingsPanel() {
         { value: 'light', label: '明亮' },
         { value: 'dark', label: '暗色' },
     ]);
+}
+
+// Explicit mode controls so the settings panel documents every hidden
+// interaction — each button names its shortcut. Entering a mode closes the
+// popover; the mode keeps the panel awake until finished (click / Esc).
+function settingsModeControls() {
+    const row = settingsRow('面板');
+    const modes = [
+        { label: '移动 (Alt+V)', mode: 'move' },
+        { label: '缩放 (Alt+S)', mode: 'resize' },
+    ];
+    modes.forEach(function (m) {
+        const b = document.createElement('span');
+        b.className = 'lf-set-choice';
+        b.textContent = m.label;
+        b.addEventListener('click', function () {
+            setPopoverVisible(elements.settingsPop, false);
+            wakeUp();
+            enterOpMode(m.mode);
+        });
+        row.appendChild(b);
+    });
 }
 
 // Toggle the settings popover; close the chapter popover if open.
@@ -819,6 +846,7 @@ elements.settingsPop.addEventListener('click', function (e) {
 });
 
 buildSettingsPanel();
+settingsModeControls();
 
 // v2.2: file loading lives in the settings popover (toolbar stays minimal).
 const loadRow = settingsRow('书籍');

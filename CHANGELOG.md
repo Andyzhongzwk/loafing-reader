@@ -4,6 +4,19 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.4.2] - 2026-09-28
+
+### Fixed
+- The native file input no longer renders as a "选择文件" widget on the
+  toolbar: despite the lf-hidden class, some site styles overrode it. The
+  input now lives outside the panel entirely; 设置 → 加载/换书 still clicks
+  it programmatically.
+
+### Added
+- Settings documents the hidden interactions: a 面板 row with explicit
+  移动 (Alt+V) / 缩放 (Alt+S) buttons that enter the modes directly, and
+  the header toggle is now labeled 头部 (Alt+H).
+
 ## [2.4.1] - 2026-09-22
 
 ### Fixed

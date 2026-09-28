@@ -84,7 +84,7 @@ function buildSettingsPanel() {
         { value: 'gb18030', label: 'GB18030' },
     ]);
     settingsSlider('行数', 'visibleLines', 0, 10, 1, function (v) { return v === 0 ? '自动' : v + '行'; });
-    settingsChoice('头部', 'showHeader', [
+    settingsChoice('头部 (Alt+H)', 'showHeader', [
         { value: true, label: '显示' },
         { value: false, label: '隐藏' },
     ]);
@@ -96,6 +96,28 @@ function buildSettingsPanel() {
         { value: 'light', label: '明亮' },
         { value: 'dark', label: '暗色' },
     ]);
+}
+
+// Explicit mode controls so the settings panel documents every hidden
+// interaction — each button names its shortcut. Entering a mode closes the
+// popover; the mode keeps the panel awake until finished (click / Esc).
+function settingsModeControls() {
+    const row = settingsRow('面板');
+    const modes = [
+        { label: '移动 (Alt+V)', mode: 'move' },
+        { label: '缩放 (Alt+S)', mode: 'resize' },
+    ];
+    modes.forEach(function (m) {
+        const b = document.createElement('span');
+        b.className = 'lf-set-choice';
+        b.textContent = m.label;
+        b.addEventListener('click', function () {
+            setPopoverVisible(elements.settingsPop, false);
+            wakeUp();
+            enterOpMode(m.mode);
+        });
+        row.appendChild(b);
+    });
 }
 
 // Toggle the settings popover; close the chapter popover if open.
@@ -113,6 +135,7 @@ elements.settingsPop.addEventListener('click', function (e) {
 });
 
 buildSettingsPanel();
+settingsModeControls();
 
 // v2.2: file loading lives in the settings popover (toolbar stays minimal).
 const loadRow = settingsRow('书籍');

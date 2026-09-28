@@ -1,17 +1,16 @@
 // Build the panel DOM tree:
 //   #lf-panel
-//     #lf-toolbar ([移动] [缩放] [章节], info text, [设置], hidden file input)
+//     #lf-toolbar ([移动] [缩放] [章节], info text, [设置])
 //     #lf-content > #lf-text
 //     #lf-progress > #lf-progress-thumb   (scroll mode progress bar)
 //     #lf-settings-pop > #lf-settings-body   (settings popover; hosts
 //                                             加载/换书 + 主题 + 编码 choices)
 //     #lf-chapter-pop                         (chapter list popover)
 //     #lf-toasts                              (toast notifications)
-// Move/resize are MODES (Alt+M / Alt+S or the toolbar buttons), not handles.
+// Move/resize are MODES (Alt+V / Alt+S or the toolbar buttons), not handles.
 // plus the #lf-trigger hotspot in the top-left corner.
 ce('div', 'panel', [
     ce('div', 'toolbar', [
-        ce('input', 'fileholder', [], 'hidden'),
         ce('span', 'move', [], 'item', 'btn'),
         ce('span', 'resize', [], 'item', 'btn'),
         ce('span', 'chapter', [], 'item', 'btn'),
@@ -32,6 +31,11 @@ ce('div', 'panel', [
 ]);
 ce('div', 'trigger', [], 'trigger');
 
+// Hidden native file input. Deliberately NOT on the toolbar: despite the
+// lf-hidden class some sites' CSS made the native "选择文件" widget render
+// anyway. It lives outside the panel; 设置 → 加载/换书 clicks it directly.
+ce('input', 'fileholder', [], 'hidden');
+
 elements.move.innerText = '[移动]';
 elements.resize.innerText = '[缩放]';
 elements.chapter.innerText = '[章节]';
@@ -42,3 +46,4 @@ elements.settings.innerText = '[设置]';
 
 document.documentElement.appendChild(elements.panel);
 document.documentElement.appendChild(elements.trigger);
+document.documentElement.appendChild(elements.fileholder);
