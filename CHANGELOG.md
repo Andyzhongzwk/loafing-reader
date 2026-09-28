@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.4.3] - 2026-09-28
+
+### Fixed
+- Settings label overlap: "头部 (Alt+H)" is wider than the 4.5em label
+  column and bled into the 显示/隐藏 choices. Labels are now 7em and
+  non-shrinking.
+
 ## [2.4.2] - 2026-09-28
 
 ### Fixed

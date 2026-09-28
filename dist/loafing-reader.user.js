@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         摸鱼小说阅读器 Loafing-Reader
 // @namespace    hanayabuki-loafing-reader
-// @version      2.4.2
+// @version      2.4.3
 // @description  内嵌浏览器里用来上班摸鱼看小说
 // @author       HanaYabuki
 // @match        *://*/*
@@ -154,7 +154,9 @@ const cssText = `
         white-space: nowrap;
     }
     .lf-set-label {
-        width: 4.5em;
+        /* Wide enough for shortcut annotations, e.g. 头部 (Alt+H). */
+        width: 7em;
+        flex-shrink: 0;
     }
     .lf-set-value {
         width: 3em;
