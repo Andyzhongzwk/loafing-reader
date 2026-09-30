@@ -12,11 +12,11 @@ const ROOT = path.join(__dirname, '..');
 const { version } = require(path.join(ROOT, 'package.json'));
 
 const HEADER = `// ==UserScript==
-// @name         摸鱼小说阅读器 Loafing-Reader
-// @namespace    hanayabuki-loafing-reader
+// @name         摸鱼小说阅读器 Loafing-Reader (增强版)
+// @namespace    andyzhongzwk-loafing-reader
 // @version      ${version}
-// @description  内嵌浏览器里用来上班摸鱼看小说
-// @author       HanaYabuki
+// @description  内嵌浏览器里用来上班摸鱼看小说（v2 增强版：设置面板、章节跳转、迷你模式、失焦隐藏）
+// @author       Andyzhongzwk
 // @match        *://*/*
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -24,6 +24,7 @@ const HEADER = `// ==UserScript==
 // @noframes
 // ==/UserScript==
 // This file is generated from src/ by scripts/build.js — do not edit directly.
+// Fork of hua-zhi-wan/loafing-reader (MIT). See README.md for credits.
 `;
 
 // Concatenation order = execution order. Top-level side effects (DOM building,

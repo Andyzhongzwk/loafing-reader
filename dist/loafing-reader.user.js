@@ -1,9 +1,9 @@
 // ==UserScript==
-// @name         摸鱼小说阅读器 Loafing-Reader
-// @namespace    hanayabuki-loafing-reader
+// @name         摸鱼小说阅读器 Loafing-Reader (增强版)
+// @namespace    andyzhongzwk-loafing-reader
 // @version      2.4.3
-// @description  内嵌浏览器里用来上班摸鱼看小说
-// @author       HanaYabuki
+// @description  内嵌浏览器里用来上班摸鱼看小说（v2 增强版：设置面板、章节跳转、迷你模式、失焦隐藏）
+// @author       Andyzhongzwk
 // @match        *://*/*
 // @grant        GM_getValue
 // @grant        GM_setValue
@@ -11,6 +11,7 @@
 // @noframes
 // ==/UserScript==
 // This file is generated from src/ by scripts/build.js — do not edit directly.
+// Fork of hua-zhi-wan/loafing-reader (MIT). See README.md for credits.
 
 (function () {
 
