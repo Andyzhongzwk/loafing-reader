@@ -72,9 +72,10 @@ function applySettings() {
 }
 
 // Keyboard shortcut helper for [ / ] font-size adjustment.
+// Bounds mirror the settings number input (8–48).
 function adjustFontSize(delta) {
     const s = getSettings();
-    const size = Math.min(24, Math.max(12, s.fontSize + delta));
+    const size = Math.min(48, Math.max(8, s.fontSize + delta));
     if (size !== s.fontSize) {
         setSetting('fontSize', size);
         applySettings();

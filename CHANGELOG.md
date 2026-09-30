@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.5.0] - 2026-09-30
+
+### Changed
+- Font size, line height, and visible line count are now number inputs
+  (up/down arrows + free typing) instead of sliders — a slider's fixed max
+  was too limiting. Out-of-range input is clamped. Bounds widened:
+  字号 8–48 (the [ / ] shortcut caps now match), 行高 1–3, 行数 0–50.
+- Opacity settings keep their sliders, where dragging feels better.
+
 ## [2.4.3] - 2026-09-28
 
 ### Fixed
