@@ -4,6 +4,13 @@ All notable changes to this project will be documented in this file.
 Format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 versions follow [Semantic Versioning](https://semver.org/).
 
+## [2.5.1] - 2026-09-30
+
+### Changed
+- Numeric settings are sliders again, uniformly — the widened bounds from
+  v2.5.0 are kept (字号 8–48, 行高 1–3, 行数 0–50); the number-input
+  experiment is reverted for control consistency.
+
 ## [2.5.0] - 2026-09-30
 
 ### Changed

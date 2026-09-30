@@ -169,9 +169,6 @@ const cssText = `
         width: 3em;
         text-align: right;
     }
-    .lf-set-row input[type='number'] {
-        width: 4.5em;
-    }
     .lf-set-choice {
         color: var(--lf-btn-color);
         cursor: pointer;
@@ -756,26 +753,6 @@ function settingsSlider(labelText, key, min, max, step, format) {
     row.appendChild(value);
 }
 
-// Numeric setting as a number input (up/down arrows + free typing) for
-// values where a slider's fixed range is too limiting (font size, line
-// height, line count). Out-of-range input is clamped and reflected back.
-function settingsNumber(labelText, key, min, max, step) {
-    const row = settingsRow(labelText);
-    const input = document.createElement('input');
-    input.type = 'number';
-    input.min = min; input.max = max; input.step = step;
-    input.value = getSettings()[key];
-    input.addEventListener('input', function () {
-        let v = parseFloat(input.value);
-        if (isNaN(v)) return;
-        v = Math.min(max, Math.max(min, v));
-        input.value = v;
-        setSetting(key, v);
-        applySettings();
-    });
-    row.appendChild(input);
-}
-
 function settingsChoice(labelText, key, options) {
     const row = settingsRow(labelText);
     const btns = [];
@@ -809,10 +786,10 @@ function onModeChange() {
 }
 
 function buildSettingsPanel() {
-    // Range-free values use number inputs (wide bounds); opacity stays on
-    // sliders where dragging feels better.
-    settingsNumber('字号', 'fontSize', 8, 48, 1);
-    settingsNumber('行高', 'lineHeight', 1, 3, 0.05);
+    // Sliders everywhere, with generous bounds (tight caps were the only
+    // reason number inputs were ever considered).
+    settingsSlider('字号', 'fontSize', 8, 48, 1, function (v) { return v + 'px'; });
+    settingsSlider('行高', 'lineHeight', 1, 3, 0.05, function (v) { return v.toFixed(2); });
     settingsSlider('文字透明', 'textOpacity', 0.5, 1, 0.05, function (v) { return Math.round(v * 100) + '%'; });
     settingsSlider('背景透明', 'bgOpacity', 0, 0.4, 0.02, function (v) { return Math.round(v * 100) + '%'; });
     settingsChoice('字体', 'fontFamily', [
@@ -829,7 +806,7 @@ function buildSettingsPanel() {
         { value: 'utf-8', label: 'UTF-8' },
         { value: 'gb18030', label: 'GB18030' },
     ]);
-    settingsNumber('行数', 'visibleLines', 0, 50, 1);
+    settingsSlider('行数', 'visibleLines', 0, 50, 1, function (v) { return v === 0 ? '自动' : v + '行'; });
     settingsChoice('头部 (Alt+H)', 'showHeader', [
         { value: true, label: '显示' },
         { value: false, label: '隐藏' },
@@ -1380,22 +1357,22 @@ check('settings popover hidden initially', document.getElementById('lf-settings-
 // open settings popover
 document.getElementById('lf-settings').click();
 check('settings popover opens', !document.getElementById('lf-settings-pop').classList.contains('lf-hidden'));
-// sliders present (opacity only) + number inputs (字号/行高/行数)
+// sliders present (uniform controls, generous bounds)
 const sliders = document.getElementById('lf-settings-body').querySelectorAll('input[type=range]');
-check('2 sliders built', sliders.length === 2);
-const numbers = document.getElementById('lf-settings-body').querySelectorAll('input[type=number]');
-check('3 number inputs built', numbers.length === 3);
+check('5 sliders built', sliders.length === 5);
 
-// change font size via number input -> live apply
-numbers[0].value = 20;
-numbers[0].dispatchEvent(new Event('input', { bubbles: true }));
+// change font size slider -> live apply
+sliders[0].value = 20;
+sliders[0].dispatchEvent(new Event('input', { bubbles: true }));
 check('font size applied live', document.getElementById('lf-text').style.fontSize === '20px');
 check('font size persisted', JSON.parse(__store['lf_settings']).fontSize === 20);
 
-// out-of-range input is clamped
-numbers[0].value = 999;
-numbers[0].dispatchEvent(new Event('input', { bubbles: true }));
+// range inputs clamp out-of-range values to the slider max (48)
+sliders[0].value = 999;
+sliders[0].dispatchEvent(new Event('input', { bubbles: true }));
 check('font size clamped to 48', JSON.parse(__store['lf_settings']).fontSize === 48);
+sliders[0].value = 12;
+sliders[0].dispatchEvent(new Event('input', { bubbles: true }));
 
 // switch to scroll mode via choice buttons (find the one labeled 滚动)
 const choices = [...document.getElementById('lf-settings-body').querySelectorAll('.lf-set-choice')];

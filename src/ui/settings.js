@@ -32,26 +32,6 @@ function settingsSlider(labelText, key, min, max, step, format) {
     row.appendChild(value);
 }
 
-// Numeric setting as a number input (up/down arrows + free typing) for
-// values where a slider's fixed range is too limiting (font size, line
-// height, line count). Out-of-range input is clamped and reflected back.
-function settingsNumber(labelText, key, min, max, step) {
-    const row = settingsRow(labelText);
-    const input = document.createElement('input');
-    input.type = 'number';
-    input.min = min; input.max = max; input.step = step;
-    input.value = getSettings()[key];
-    input.addEventListener('input', function () {
-        let v = parseFloat(input.value);
-        if (isNaN(v)) return;
-        v = Math.min(max, Math.max(min, v));
-        input.value = v;
-        setSetting(key, v);
-        applySettings();
-    });
-    row.appendChild(input);
-}
-
 function settingsChoice(labelText, key, options) {
     const row = settingsRow(labelText);
     const btns = [];
@@ -85,10 +65,10 @@ function onModeChange() {
 }
 
 function buildSettingsPanel() {
-    // Range-free values use number inputs (wide bounds); opacity stays on
-    // sliders where dragging feels better.
-    settingsNumber('字号', 'fontSize', 8, 48, 1);
-    settingsNumber('行高', 'lineHeight', 1, 3, 0.05);
+    // Sliders everywhere, with generous bounds (tight caps were the only
+    // reason number inputs were ever considered).
+    settingsSlider('字号', 'fontSize', 8, 48, 1, function (v) { return v + 'px'; });
+    settingsSlider('行高', 'lineHeight', 1, 3, 0.05, function (v) { return v.toFixed(2); });
     settingsSlider('文字透明', 'textOpacity', 0.5, 1, 0.05, function (v) { return Math.round(v * 100) + '%'; });
     settingsSlider('背景透明', 'bgOpacity', 0, 0.4, 0.02, function (v) { return Math.round(v * 100) + '%'; });
     settingsChoice('字体', 'fontFamily', [
@@ -105,7 +85,7 @@ function buildSettingsPanel() {
         { value: 'utf-8', label: 'UTF-8' },
         { value: 'gb18030', label: 'GB18030' },
     ]);
-    settingsNumber('行数', 'visibleLines', 0, 50, 1);
+    settingsSlider('行数', 'visibleLines', 0, 50, 1, function (v) { return v === 0 ? '自动' : v + '行'; });
     settingsChoice('头部 (Alt+H)', 'showHeader', [
         { value: true, label: '显示' },
         { value: false, label: '隐藏' },

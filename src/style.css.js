@@ -145,9 +145,6 @@ const cssText = `
         width: 3em;
         text-align: right;
     }
-    .lf-set-row input[type='number'] {
-        width: 4.5em;
-    }
     .lf-set-choice {
         color: var(--lf-btn-color);
         cursor: pointer;
